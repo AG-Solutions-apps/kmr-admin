@@ -641,40 +641,10 @@ class _AddVendorScreenState extends State<AddVendorScreen> {
                         ),
                         const SizedBox(height: 32),
 
-                        // Products Section
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Vendor Products',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-                            ),
-                            GestureDetector(
-                              onTap: _addProduct,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF5F0FF),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFFE9DEFF)),
-                                ),
-                                child: const Row(
-                                  children: [
-                                    Icon(Icons.add_rounded, size: 18, color: Color(0xFF6C3CE1)),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'Add Product',
-                                      style: TextStyle(
-                                        color: Color(0xFF6C3CE1),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+                        // Products Section Header
+                        const Text(
+                          'Vendor Products',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                         const SizedBox(height: 16),
                         
@@ -683,9 +653,34 @@ class _AddVendorScreenState extends State<AddVendorScreen> {
                           (index) => _buildProductCard(index)
                         ),
 
+                        // Left-aligned compact Add Product button
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            onPressed: _addProduct,
+                            icon: const Icon(Icons.add_rounded, size: 18, color: Color(0xFF6C3CE1)),
+                            label: const Text(
+                              'Add Another Product',
+                              style: TextStyle(
+                                color: Color(0xFF6C3CE1),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF5F0FF),
+                              side: const BorderSide(color: Color(0xFFE9DEFF)),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+
                         const SizedBox(height: 32),
                         
-                        // Submit Button
+                        // Submit Button (Big full-width button)
                         SizedBox(
                           width: double.infinity,
                           height: 52,
@@ -701,7 +696,7 @@ class _AddVendorScreenState extends State<AddVendorScreen> {
                               ),
                             ),
                             child: const Text(
-                              'Create Vendor',
+                              'Submit',
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,

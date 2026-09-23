@@ -727,12 +727,12 @@ class _SubCategoryScreenState extends State<SubCategoryScreen> {
             ),
             child: Row(
               children: [
-                _buildHeaderCell('SL No', null, flex: 1),
-                _buildHeaderCell('Image', null, flex: 1),
-                _buildHeaderCell('Sub-Category Name', null, flex: 3),
-                _buildHeaderCell('Parent Category', null, flex: 2),
-                _buildHeaderCell('Status', null, flex: 2),
-                _buildHeaderCell('Actions', null, flex: 1),
+                _buildHeaderCell('SL No', 60),
+                _buildHeaderCell('Image', 80),
+                _buildHeaderCell('Sub-Category Name', null, flex: 1),
+                _buildHeaderCell('Parent Category', null, flex: 1),
+                _buildHeaderCell('Status', 120),
+                _buildHeaderCell('Actions', 80),
               ],
             ),
           ),
@@ -759,12 +759,38 @@ class _SubCategoryScreenState extends State<SubCategoryScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 child: Row(
                   children: [
-                    _buildCell('${globalIndex + 1}', null, flex: 1),
-                    _buildImageCell(imageUrl, null, flex: 1),
-                    _buildCell(subCategory.categorySubName, null, flex: 3, isBold: true),
-                    _buildCell(subCategory.categoryName, null, flex: 2),
-                    _buildStatusCell(subCategory, flex: 2),
-                    _buildActionsCell(subCategory, null, flex: 1),
+                    _buildCell('${globalIndex + 1}', 60),
+                    _buildImageCell(imageUrl, 80),
+                    _buildCell(subCategory.categorySubName, null, flex: 1, isBold: true),
+                    _buildCell(subCategory.categoryName, null, flex: 1),
+                    _buildStatusCell(subCategory),
+                    SizedBox(
+                      width: 80,
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, color: Color(0xFF6C3CE1), size: 20),
+                            onPressed: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => EditSubCategoryScreen(
+                                    subCategoryId: subCategory.id,
+                                    categoryName: subCategory.categoryName,
+                                    subCategoryName: subCategory.categorySubName,
+                                    subCategoryImage: subCategory.categoriesSubImages,
+                                    subCategoryStatus: subCategory.categorySubStatus,
+                                  ),
+                                ),
+                              );
+                              if (result == true) {
+                                _fetchSubCategories();
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -823,116 +849,72 @@ class _SubCategoryScreenState extends State<SubCategoryScreen> {
     );
   }
 
-  Widget _buildImageCell(String imageUrl, double? width, {int? flex}) {
-    Widget content = imageUrl.isNotEmpty
-        ? ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.network(
-              imageUrl,
-              height: 44,
-              width: 44,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
+  Widget _buildImageCell(String imageUrl, double width) {
+    return SizedBox(
+      width: width,
+      child: imageUrl.isNotEmpty
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                imageUrl,
                 height: 44,
                 width: 44,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(10),
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 44,
+                  width: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.broken_image_outlined, color: Colors.grey.shade400, size: 22),
                 ),
-                child: Icon(Icons.broken_image_outlined, color: Colors.grey.shade400, size: 22),
               ),
+            )
+          : Container(
+              height: 44,
+              width: 44,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.image_outlined, color: Colors.grey.shade400, size: 22),
             ),
-          )
-        : Container(
-            height: 44,
-            width: 44,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.image_outlined, color: Colors.grey.shade400, size: 22),
-          );
-
-    if (width != null) {
-      return SizedBox(
-        width: width,
-        child: Align(alignment: Alignment.centerLeft, child: content),
-      );
-    }
-    return Expanded(
-      flex: flex ?? 1,
-      child: Align(alignment: Alignment.centerLeft, child: content),
     );
   }
 
-  Widget _buildStatusCell(SubCategoryModel subCategory, {double? width, int? flex}) {
+  Widget _buildStatusCell(SubCategoryModel subCategory) {
     final status = subCategory.categorySubStatus;
     final isActive = status == 'Active';
-    Widget content = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        InkWell(
-          onTap: () => _toggleSubCategoryStatus(subCategory),
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: isActive ? const Color(0xFFECFDF5) : const Color(0xFFFFF1F2),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: isActive ? const Color(0xFFA7F3D0) : const Color(0xFFFECDD3),
+    return SizedBox(
+      width: 120,
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () => _toggleSubCategoryStatus(subCategory),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: isActive ? const Color(0xFFECFDF5) : const Color(0xFFFFF1F2),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isActive ? const Color(0xFFA7F3D0) : const Color(0xFFFECDD3),
+                ),
               ),
-            ),
-            child: Text(
-              status,
-              style: TextStyle(
-                fontSize: 11,
-                color: isActive ? const Color(0xFF047857) : const Color(0xFFBE123C),
-                fontWeight: FontWeight.bold,
+              child: Text(
+                status,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isActive ? const Color(0xFF047857) : const Color(0xFFBE123C),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
-
-    if (width != null) {
-      return SizedBox(width: width, child: content);
-    }
-    return Expanded(flex: flex ?? 1, child: content);
-  }
-
-  Widget _buildActionsCell(SubCategoryModel subCategory, double? width, {int? flex}) {
-    Widget content = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.edit_outlined, color: Color(0xFF6C3CE1), size: 20),
-          onPressed: () async {
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => EditSubCategoryScreen(
-                  subCategoryId: subCategory.id,
-                  categoryName: subCategory.categoryName,
-                  subCategoryName: subCategory.categorySubName,
-                  subCategoryImage: subCategory.categoriesSubImages,
-                  subCategoryStatus: subCategory.categorySubStatus,
-                ),
-              ),
-            );
-            if (result == true) {
-              _fetchSubCategories();
-            }
-          },
-        ),
-      ],
-    );
-
-    if (width != null) {
-      return SizedBox(width: width, child: content);
-    }
-    return Expanded(flex: flex ?? 1, child: content);
   }
 
   Future<void> _toggleSubCategoryStatus(SubCategoryModel subCategory) async {
