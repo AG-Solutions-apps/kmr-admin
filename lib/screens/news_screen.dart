@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:krm_admin/models/news_model.dart';
 import 'package:krm_admin/services/news_service.dart';
-import 'package:flutter/foundation.dart';
 
 class NewsScreen extends StatefulWidget {
   const NewsScreen({super.key});
@@ -21,46 +20,59 @@ class _NewsScreenState extends State<NewsScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   String _searchQuery = '';
-  String _filterStatus = 'All';
-  String _selectedHeadingFilter = 'All';
-  String _selectedDetailsFilter = 'All';
-  String _selectedDateFilter = 'All';
-  bool _showFilters = false;
+  String _selectedCategoryFilter = 'All';
 
-  List<String> get uniqueHeadings {
-    final headings = _newsItems.map((item) => item.newsHeadlines).toSet().where((h) => h.isNotEmpty).toList();
-    headings.sort();
-    return ['All', ...headings];
+  int _cacheBuster = DateTime.now().millisecondsSinceEpoch;
+
+  List<String> get uniqueCategories {
+    return const ['All', 'Active', 'Inactive'];
   }
 
-  List<String> get uniqueDetails {
-    final details = _newsItems.map((item) => item.newsContent).toSet().where((d) => d.isNotEmpty).toList();
-    details.sort();
-    return ['All', ...details];
-  }
+  DateTime _parseDateTime(String dateStr, String timeStr) {
+    if (dateStr.trim().isEmpty) return DateTime(1970);
+    try {
+      String cleanDate = dateStr.trim();
+      if (cleanDate.contains('-') || cleanDate.contains('/')) {
+        final parts = cleanDate.split(RegExp(r'[-/]'));
+        if (parts.length == 3) {
+          if (parts[0].length == 4) {
+            cleanDate = '${parts[0]}-${parts[1].padLeft(2, '0')}-${parts[2].padLeft(2, '0')}';
+          } else if (parts[2].length == 4) {
+            cleanDate = '${parts[2]}-${parts[1].padLeft(2, '0')}-${parts[0].padLeft(2, '0')}';
+          }
+        }
+      }
 
-  List<String> get uniqueDates {
-    final dates = _newsItems.map((item) => item.newsCreatedDate).toSet().where((d) => d.isNotEmpty).toList();
-    dates.sort();
-    return ['All', ...dates];
+      String cleanTime = timeStr.trim();
+      int hour = 0, minute = 0, second = 0;
+      if (cleanTime.isNotEmpty) {
+        bool isPm = cleanTime.toUpperCase().contains('PM');
+        bool isAm = cleanTime.toUpperCase().contains('AM');
+        String tOnly = cleanTime.replaceAll(RegExp(r'[^\d:]'), '');
+        final tParts = tOnly.split(':');
+        if (tParts.isNotEmpty) hour = int.tryParse(tParts[0]) ?? 0;
+        if (tParts.length > 1) minute = int.tryParse(tParts[1]) ?? 0;
+        if (tParts.length > 2) second = int.tryParse(tParts[2]) ?? 0;
+
+        if (isPm && hour < 12) hour += 12;
+        if (isAm && hour == 12) hour = 0;
+      }
+
+      final parsedDate = DateTime.tryParse(cleanDate);
+      if (parsedDate != null) {
+        return DateTime(parsedDate.year, parsedDate.month, parsedDate.day, hour, minute, second);
+      }
+    } catch (_) {}
+    return DateTime(1970);
   }
 
   void _clearFilters() {
     setState(() {
       _searchQuery = '';
-      _filterStatus = 'All';
-      _selectedHeadingFilter = 'All';
-      _selectedDetailsFilter = 'All';
-      _selectedDateFilter = 'All';
+      _selectedCategoryFilter = 'All';
       _applyFilter();
     });
   }
-
-  int _cacheBuster = DateTime.now().millisecondsSinceEpoch;
-
-  // Pagination parameters
-  int _currentPage = 1;
-  static const int _itemsPerPage = 10;
 
   @override
   void initState() {
@@ -76,32 +88,20 @@ class _NewsScreenState extends State<NewsScreen> {
 
     try {
       final items = await _newsService.fetchNewsList();
+      // Sort latest date and time first (fallback to ID)
+      items.sort((a, b) {
+        final dtA = _parseDateTime(a.newsCreatedDate, '');
+        final dtB = _parseDateTime(b.newsCreatedDate, '');
+        final cmp = dtB.compareTo(dtA);
+        if (cmp != 0) return cmp;
+        return b.id.compareTo(a.id);
+      });
       if (mounted) {
         setState(() {
           _newsItems = items;
           _cacheBuster = DateTime.now().millisecondsSinceEpoch;
           _isLoading = false;
-          // Apply active search/filters on refresh
-          _filteredItems = items.where((item) {
-            final matchesSearch = _searchQuery.isEmpty ||
-                item.newsHeadlines.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                item.newsContent.toLowerCase().contains(_searchQuery.toLowerCase());
-
-            final matchesStatus = _filterStatus == 'All' ||
-                item.newsStatus.toLowerCase() == _filterStatus.toLowerCase();
-
-            final matchesHeading = _selectedHeadingFilter == 'All' ||
-                item.newsHeadlines == _selectedHeadingFilter;
-
-            final matchesDetails = _selectedDetailsFilter == 'All' ||
-                item.newsContent == _selectedDetailsFilter;
-
-            final matchesDate = _selectedDateFilter == 'All' ||
-                item.newsCreatedDate == _selectedDateFilter;
-
-            return matchesSearch && matchesStatus && matchesHeading && matchesDetails && matchesDate;
-          }).toList();
-          _currentPage = 1;
+          _applyFilter();
         });
       }
     } catch (e) {
@@ -116,25 +116,23 @@ class _NewsScreenState extends State<NewsScreen> {
 
   void _applyFilter() {
     setState(() {
-      _currentPage = 1; // Reset to page 1 on filter/search change
       _filteredItems = _newsItems.where((item) {
         final matchesSearch = _searchQuery.isEmpty ||
             item.newsHeadlines.toLowerCase().contains(_searchQuery.toLowerCase()) ||
             item.newsContent.toLowerCase().contains(_searchQuery.toLowerCase());
 
-        final matchesStatus = _filterStatus == 'All' ||
-            item.newsStatus.toLowerCase() == _filterStatus.toLowerCase();
+        bool matchesCategory = true;
+        if (_selectedCategoryFilter == 'All') {
+          matchesCategory = true;
+        } else if (_selectedCategoryFilter == 'Active') {
+          matchesCategory = item.newsStatus.toLowerCase() == 'active';
+        } else if (_selectedCategoryFilter == 'Inactive') {
+          matchesCategory = item.newsStatus.toLowerCase() == 'inactive';
+        } else {
+          matchesCategory = item.newsHeadlines == _selectedCategoryFilter;
+        }
 
-        final matchesHeading = _selectedHeadingFilter == 'All' ||
-            item.newsHeadlines == _selectedHeadingFilter;
-
-        final matchesDetails = _selectedDetailsFilter == 'All' ||
-            item.newsContent == _selectedDetailsFilter;
-
-        final matchesDate = _selectedDateFilter == 'All' ||
-            item.newsCreatedDate == _selectedDateFilter;
-
-        return matchesSearch && matchesStatus && matchesHeading && matchesDetails && matchesDate;
+        return matchesSearch && matchesCategory;
       }).toList();
     });
   }
@@ -143,21 +141,8 @@ class _NewsScreenState extends State<NewsScreen> {
     await _fetchNews();
   }
 
-  // Pagination helpers
-  int get totalPages => (_filteredItems.length / _itemsPerPage).ceil();
-
-  List<NewsModel> get currentPagedItems {
-    int startIndex = (_currentPage - 1) * _itemsPerPage;
-    int endIndex = startIndex + _itemsPerPage;
-    if (startIndex >= _filteredItems.length) return [];
-    if (endIndex > _filteredItems.length) endIndex = _filteredItems.length;
-    return _filteredItems.sublist(startIndex, endIndex);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       body: RefreshIndicator(
@@ -170,10 +155,10 @@ class _NewsScreenState extends State<NewsScreen> {
                   // Top Summary Stats Cards
                   _buildSummaryCards(),
 
-                  // Search and Filters Bar
+                  // Search and Horizontal Category Chips Filter Bar
                   _buildSearchAndFilterBar(),
 
-                  // List Content
+                  // News Cards Grid Content
                   Expanded(
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
@@ -187,18 +172,13 @@ class _NewsScreenState extends State<NewsScreen> {
                             _buildEmptyState()
                           else if (_filteredItems.isEmpty)
                             _buildNoMatchState()
-                          else if (screenWidth < 700)
-                            _buildMobileListView()
                           else
-                            _buildDesktopTableView(),
-                          const SizedBox(height: 12),
+                            _buildNewsCardsView(),
+                          const SizedBox(height: 24),
                         ],
                       ),
                     ),
                   ),
-
-                  // Pagination Footer
-                  if (totalPages > 1) _buildPaginationFooter(),
                 ],
               ),
       ),
@@ -278,11 +258,14 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Widget _buildSearchAndFilterBar() {
+    final categories = uniqueCategories;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Search input
+          // Search input (without filter funnel icon)
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -317,192 +300,72 @@ class _NewsScreenState extends State<NewsScreen> {
                     },
                   ),
                 ),
-                if (_searchQuery.isNotEmpty || _selectedHeadingFilter != 'All' || _selectedDetailsFilter != 'All' || _selectedDateFilter != 'All')
+                if (_searchQuery.isNotEmpty || _selectedCategoryFilter != 'All')
                   IconButton(
                     icon: const Icon(Icons.clear_rounded, size: 20, color: Colors.grey),
                     onPressed: _clearFilters,
                   ),
-                IconButton(
-                  icon: Icon(
-                    _showFilters ? Icons.filter_alt_rounded : Icons.filter_alt_outlined,
-                    color: _showFilters ? const Color(0xFF6C3CE1) : Colors.grey,
-                  ),
-                  tooltip: 'Filter options',
-                  onPressed: () {
-                    setState(() {
-                      _showFilters = !_showFilters;
-                    });
-                  },
-                ),
               ],
             ),
           ),
-          if (_showFilters) ...[
-            const SizedBox(height: 10),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                return Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButtonFormField<String>(
-                                value: _selectedHeadingFilter,
-                                decoration: const InputDecoration(
-                                  labelText: 'Heading',
-                                  labelStyle: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold),
-                                  border: InputBorder.none,
-                                ),
-                                isExpanded: true,
-                                style: const TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.w500),
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    setState(() {
-                                      _selectedHeadingFilter = val;
-                                      _applyFilter();
-                                    });
-                                  }
-                                },
-                                items: uniqueHeadings.map((h) => DropdownMenuItem(value: h, child: Text(h.length > 25 ? h.substring(0, 25) + '...' : h))).toList(),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButtonFormField<String>(
-                                value: _selectedDetailsFilter,
-                                decoration: const InputDecoration(
-                                  labelText: 'Details',
-                                  labelStyle: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold),
-                                  border: InputBorder.none,
-                                ),
-                                isExpanded: true,
-                                style: const TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.w500),
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    setState(() {
-                                      _selectedDetailsFilter = val;
-                                      _applyFilter();
-                                    });
-                                  }
-                                },
-                                items: uniqueDetails.map((d) => DropdownMenuItem(value: d, child: Text(d.length > 25 ? d.substring(0, 25) + '...' : d))).toList(),
-                            ),
-                          ),
-                        ),
-                      ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButtonFormField<String>(
-                                value: _selectedDateFilter,
-                                decoration: const InputDecoration(
-                                  labelText: 'Date/Time',
-                                  labelStyle: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold),
-                                  border: InputBorder.none,
-                                ),
-                                isExpanded: true,
-                                style: const TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.w500),
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    setState(() {
-                                      _selectedDateFilter = val;
-                                      _applyFilter();
-                                    });
-                                  }
-                                },
-                                items: uniqueDates.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
           const SizedBox(height: 12),
-          // Filter Chips
-          Row(
-            children: [
-              _buildFilterChip('All', 'All'),
-              const SizedBox(width: 8),
-              _buildFilterChip('Active', 'Active'),
-              const SizedBox(width: 8),
-              _buildFilterChip('Inactive', 'Inactive'),
-              const Spacer(),
-              Text(
-                '${_filteredItems.length} items',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade50,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+          // Horizontal Scrollable Category Filter Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: categories.map((category) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _buildCategoryChip(category),
+                );
+              }).toList(),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterChip(String label, String value) {
-    bool isSelected = _filterStatus == value;
-    Color chipColor = isSelected ? const Color(0xFFF5F0FF) : Colors.white;
-    Color borderAndTextColor = isSelected ? const Color(0xFF6C3CE1) : Colors.grey.shade300;
+  Widget _buildCategoryChip(String categoryName) {
+    final isSelected = _selectedCategoryFilter == categoryName;
+    final chipColor = isSelected ? const Color(0xFFF5F0FF) : Colors.white;
+    final borderAndTextColor = isSelected ? const Color(0xFF6C3CE1) : Colors.grey.shade300;
 
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
+    return GestureDetector(
+      onTap: () {
         setState(() {
-          _filterStatus = value;
+          _selectedCategoryFilter = categoryName;
           _applyFilter();
         });
       },
-      backgroundColor: Colors.white,
-      selectedColor: chipColor,
-      checkmarkColor: const Color(0xFF6C3CE1),
-      labelStyle: TextStyle(
-        color: isSelected ? const Color(0xFF6C3CE1) : Colors.grey.shade600,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        fontSize: 12,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: borderAndTextColor,
-          width: 1.2,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: chipColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: borderAndTextColor,
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected) ...[
+              const Icon(Icons.check_rounded, size: 16, color: Color(0xFF6C3CE1)),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              categoryName,
+              style: TextStyle(
+                color: isSelected ? const Color(0xFF6C3CE1) : Colors.grey.shade700,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -512,14 +375,34 @@ class _NewsScreenState extends State<NewsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
-          'News Feed',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-            letterSpacing: 0.2,
-          ),
+        Row(
+          children: [
+            const Text(
+              'News Feed',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F0FF),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${_filteredItems.length}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF6C3CE1),
+                ),
+              ),
+            ),
+          ],
         ),
         GestureDetector(
           onTap: () => _showAddDialog(context),
@@ -600,13 +483,7 @@ class _NewsScreenState extends State<NewsScreen> {
           ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: () {
-              setState(() {
-                _searchQuery = '';
-                _filterStatus = 'All';
-                _applyFilter();
-              });
-            },
+            onPressed: _clearFilters,
             child: const Text('Clear filters', style: TextStyle(color: Color(0xFF6C3CE1), fontWeight: FontWeight.bold)),
           ),
         ],
@@ -737,280 +614,162 @@ class _NewsScreenState extends State<NewsScreen> {
     );
   }
 
-  // Desktop Table layout
-  Widget _buildDesktopTableView() {
-    final paged = currentPagedItems;
-    final startIndex = (_currentPage - 1) * _itemsPerPage;
+  // Cards View for Web (3 cards per row) and Mobile (1 card per row)
+  Widget _buildNewsCardsView() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final int crossAxisCount = screenWidth >= 900 ? 3 : (screenWidth >= 600 ? 2 : 1);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const double spacing = 12;
+        final double totalWidth = constraints.maxWidth;
+        final double cardWidth = crossAxisCount == 1
+            ? totalWidth
+            : (totalWidth - (spacing * (crossAxisCount - 1))) / crossAxisCount;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: List.generate(_filteredItems.length, (index) {
+            final item = _filteredItems[index];
+            return SizedBox(
+              width: cardWidth,
+              child: _buildNewsCardItem(item, index + 1),
+            );
+          }),
+        );
+      },
+    );
+  }
+
+  Widget _buildNewsCardItem(NewsModel item, int displayIndex) {
+    final isActive = item.newsStatus.toLowerCase() == 'active';
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Table(
-        columnWidths: const {
-          0: FixedColumnWidth(60),
-          1: FixedColumnWidth(80),
-          2: FlexColumnWidth(4),
-          3: FlexColumnWidth(5),
-          4: FixedColumnWidth(100),
-          5: FixedColumnWidth(100),
-        },
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      child: Stack(
         children: [
-          TableRow(
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
+          // Left Accent Line for Status
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: Container(
+              width: 5,
+              color: isActive ? const Color(0xFF10B981) : const Color(0xFFEF4444),
             ),
-            children: [
-              _buildTableHeaderCell('SL No'),
-              _buildTableHeaderCell('Image'),
-              _buildTableHeaderCell('Headlines'),
-              _buildTableHeaderCell('Content'),
-              _buildTableHeaderCell('Status'),
-              _buildTableHeaderCell('Actions'),
-            ],
           ),
-          ...List.generate(paged.length, (idx) {
-            final item = paged[idx];
-            return TableRow(
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
-              ),
+          Padding(
+            padding: const EdgeInsets.only(left: 17, right: 14, top: 14, bottom: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _buildTableCell(Text('${startIndex + idx + 1}', style: const TextStyle(fontWeight: FontWeight.bold))),
-                _buildTableCell(_buildNewsImage(item.newsImage, size: 50, borderRadius: 10)),
-                _buildTableCell(Text(item.newsHeadlines, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87))),
-                _buildTableCell(
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.newsContent,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                      ),
-                      if (item.newsContent.length > 80)
-                        GestureDetector(
-                          onTap: () => _showContentPopup(context, item.newsHeadlines, item.newsContent),
-                          child: const Padding(
-                            padding: EdgeInsets.only(top: 4),
-                            child: Text(
-                              'View Full story',
-                              style: TextStyle(color: Color(0xFF6C3CE1), fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                _buildTableCell(_buildStatusBadge(item)),
-                _buildTableCell(
-                 
-
-ElevatedButton.icon(
-  onPressed: () => _showEditDialog(context, item),
-  icon: const Icon(Icons.edit_outlined, size: 14),
-  label: defaultTargetPlatform == TargetPlatform.android
-      ? const Text('Edit')
-      : const SizedBox.shrink(),
-  style: ElevatedButton.styleFrom(
-    backgroundColor: defaultTargetPlatform == TargetPlatform.android
-        ? const Color(0xFFF5F0FF)
-        : Colors.transparent,
-    foregroundColor: const Color(0xFF6C3CE1),
-    elevation: 0,
-    shadowColor: Colors.transparent,
-    side: BorderSide(
-      color: defaultTargetPlatform == TargetPlatform.android
-          ? const Color(0xFFE9DEFF)
-          : Colors.transparent,
-    ),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(8),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-  ),
-),
-                ),
-              ],
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTableHeaderCell(String text) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.grey.shade700,
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTableCell(Widget child) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: child,
-    );
-  }
-
-  // Mobile list view layout
-  Widget _buildMobileListView() {
-    final paged = currentPagedItems;
-    final startIndex = (_currentPage - 1) * _itemsPerPage;
-
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
-      itemCount: paged.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final item = paged[index];
-        final isActive = item.newsStatus.toLowerCase() == 'active';
-
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.02),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-            border: Border.all(color: Colors.grey.shade100),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: IntrinsicHeight(
-              child: Row(
-                children: [
-                  Container(
-                    width: 5,
-                    color: isActive ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildNewsImage(item.newsImage, size: 56, borderRadius: 12),
+                    const SizedBox(width: 10),
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildNewsImage(item.newsImage, size: 64, borderRadius: 12),
-                              const SizedBox(width: 12),
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            '${startIndex + index + 1}. ${item.newsHeadlines}',
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        _buildStatusBadge(item),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Created: ${item.newsCreatedDate}',
-                                      style: TextStyle(color: Colors.grey.shade500, fontSize: 10, fontWeight: FontWeight.w500),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Divider(height: 24),
-                          Text(
-                            item.newsContent,
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                          ),
-                          if (item.newsContent.length > 120)
-                            GestureDetector(
-                              onTap: () => _showContentPopup(context, item.newsHeadlines, item.newsContent),
-                              child: const Padding(
-                                padding: EdgeInsets.only(top: 8),
                                 child: Text(
-                                  'View Full story',
-                                  style: TextStyle(color: Color(0xFF6C3CE1), fontSize: 12, fontWeight: FontWeight.bold),
+                                  '$displayIndex. ${item.newsHeadlines}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: Colors.black87,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            ),
-                          const Divider(height: 24),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                            
-
-ElevatedButton.icon(
-  onPressed: () => _showEditDialog(context, item),
-  icon: const Icon(Icons.edit_outlined, size: 14),
-  label: defaultTargetPlatform == TargetPlatform.android
-      ? const Text('Edit')
-      : const SizedBox.shrink(),
-  style: ElevatedButton.styleFrom(
-    backgroundColor: defaultTargetPlatform == TargetPlatform.android
-        ? const Color(0xFFF5F0FF)
-        : Colors.transparent,
-    foregroundColor: const Color(0xFF6C3CE1),
-    elevation: 0,
-    shadowColor: Colors.transparent,
-    side: BorderSide(
-      color: defaultTargetPlatform == TargetPlatform.android
-          ? const Color(0xFFE9DEFF)
-          : Colors.transparent,
-    ),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(8),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-  ),
-),
+                              const SizedBox(width: 6),
+                              _buildStatusBadge(item),
                             ],
                           ),
+                          if (item.newsCreatedDate.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.calendar_today_rounded, size: 11, color: Colors.grey.shade400),
+                                const SizedBox(width: 4),
+                                Text(
+                                  item.newsCreatedDate,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade500,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  item.newsContent,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12, height: 1.4),
+                ),
+                if (item.newsContent.length > 70) ...[
+                  const SizedBox(height: 4),
+                  GestureDetector(
+                    onTap: () => _showContentPopup(context, item.newsHeadlines, item.newsContent),
+                    child: const Text(
+                      'View Full story',
+                      style: TextStyle(color: Color(0xFF6C3CE1), fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
-              ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => _showEditDialog(context, item),
+                      icon: const Icon(Icons.edit_outlined, size: 14),
+                      label: const Text('Edit'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF5F0FF),
+                        foregroundColor: const Color(0xFF6C3CE1),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -1615,101 +1374,6 @@ ElevatedButton.icon(
           },
         );
       },
-    );
-  }
-
-  Widget _buildPaginationFooter() {
-    final total = _filteredItems.length;
-    if (total == 0) return const SizedBox.shrink();
-
-    final startIndex = (_currentPage - 1) * _itemsPerPage + 1;
-    var endIndex = startIndex + _itemsPerPage - 1;
-    if (endIndex > total) endIndex = total;
-
-    final isMobile = MediaQuery.of(context).size.width < 500;
-
-    final infoText = Text(
-      'Showing $startIndex-$endIndex of $total stories',
-      style: TextStyle(
-        fontSize: 12,
-        color: Colors.grey.shade500,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-
-    final navControls = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildPageNavButton(
-          Icons.arrow_back_ios_new_rounded,
-          _currentPage > 1,
-          () {
-            setState(() {
-              _currentPage--;
-            });
-          },
-        ),
-        const SizedBox(width: 12),
-        Text(
-          'Page $_currentPage of $totalPages',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey.shade700,
-          ),
-        ),
-        const SizedBox(width: 12),
-        _buildPageNavButton(
-          Icons.arrow_forward_ios_rounded,
-          _currentPage < totalPages,
-          () {
-            setState(() {
-              _currentPage++;
-            });
-          },
-        ),
-      ],
-    );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      child: isMobile
-          ? Column(
-              children: [
-                infoText,
-                const SizedBox(height: 10),
-                navControls,
-              ],
-            )
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                infoText,
-                navControls,
-              ],
-            ),
-    );
-  }
-
-  Widget _buildPageNavButton(IconData icon, bool enabled, VoidCallback onTap) {
-    return Container(
-      decoration: BoxDecoration(
-        color: enabled ? Colors.white : Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: enabled ? Colors.grey.shade200 : Colors.grey.shade100),
-      ),
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Icon(
-            icon,
-            size: 14,
-            color: enabled ? const Color(0xFF6C3CE1) : Colors.grey.shade300,
-          ),
-        ),
-      ),
     );
   }
 }

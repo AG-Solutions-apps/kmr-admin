@@ -628,11 +628,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
             ),
             child: Row(
               children: [
-                _buildHeaderCell('SL No', null, flex: 1),
-                _buildHeaderCell('Image', null, flex: 1),
-                _buildHeaderCell('Category Name', null, flex: 3),
-                _buildHeaderCell('Status', null, flex: 2),
-                _buildHeaderCell('Actions', null, flex: 1),
+                _buildHeaderCell('SL No', 60),
+                _buildHeaderCell('Image', 80),
+                _buildHeaderCell('Category Name', null, flex: 1),
+                _buildHeaderCell('Status', 120),
+                _buildHeaderCell('Actions', 80),
               ],
             ),
           ),
@@ -659,11 +659,36 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 child: Row(
                   children: [
-                    _buildCell('${globalIndex + 1}', null, flex: 1),
-                    _buildImageCell(imageUrl, null, flex: 1),
-                    _buildCell(category.categoryName, null, flex: 3, isBold: true),
-                    _buildStatusCell(category, flex: 2),
-                    _buildActionsCell(category, null, flex: 1),
+                    _buildCell('${globalIndex + 1}', 60),
+                    _buildImageCell(imageUrl, 80),
+                    _buildCell(category.categoryName, null, flex: 1, isBold: true),
+                    _buildStatusCell(category),
+                    SizedBox(
+                      width: 80,
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, color: Color(0xFF6C3CE1), size: 20),
+                            onPressed: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => EditCategoryScreen(
+                                    categoryId: category.id,
+                                    categoryName: category.categoryName,
+                                    categoryImage: category.categoriesImages,
+                                    categoryStatus: category.categoryStatus,
+                                  ),
+                                ),
+                              );
+                              if (result == true) {
+                                _fetchCategories();
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -722,115 +747,72 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
-  Widget _buildImageCell(String imageUrl, double? width, {int? flex}) {
-    Widget content = imageUrl.isNotEmpty
-        ? ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.network(
-              imageUrl,
-              height: 44,
-              width: 44,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
+  Widget _buildImageCell(String imageUrl, double width) {
+    return SizedBox(
+      width: width,
+      child: imageUrl.isNotEmpty
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                imageUrl,
                 height: 44,
                 width: 44,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(10),
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 44,
+                  width: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.broken_image_outlined, color: Colors.grey.shade400, size: 22),
                 ),
-                child: Icon(Icons.broken_image_outlined, color: Colors.grey.shade400, size: 22),
               ),
+            )
+          : Container(
+              height: 44,
+              width: 44,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.image_outlined, color: Colors.grey.shade400, size: 22),
             ),
-          )
-        : Container(
-            height: 44,
-            width: 44,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.image_outlined, color: Colors.grey.shade400, size: 22),
-          );
-
-    if (width != null) {
-      return SizedBox(
-        width: width,
-        child: Align(alignment: Alignment.centerLeft, child: content),
-      );
-    }
-    return Expanded(
-      flex: flex ?? 1,
-      child: Align(alignment: Alignment.centerLeft, child: content),
     );
   }
 
-  Widget _buildStatusCell(CategoryModel category, {double? width, int? flex}) {
+  Widget _buildStatusCell(CategoryModel category) {
     final status = category.categoryStatus;
     final isActive = status == 'Active';
-    Widget content = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        InkWell(
-          onTap: () => _toggleCategoryStatus(category),
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: isActive ? const Color(0xFFECFDF5) : const Color(0xFFFFF1F2),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: isActive ? const Color(0xFFA7F3D0) : const Color(0xFFFECDD3),
+    return SizedBox(
+      width: 120,
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () => _toggleCategoryStatus(category),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: isActive ? const Color(0xFFECFDF5) : const Color(0xFFFFF1F2),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isActive ? const Color(0xFFA7F3D0) : const Color(0xFFFECDD3),
+                ),
               ),
-            ),
-            child: Text(
-              status,
-              style: TextStyle(
-                fontSize: 11,
-                color: isActive ? const Color(0xFF047857) : const Color(0xFFBE123C),
-                fontWeight: FontWeight.bold,
+              child: Text(
+                status,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isActive ? const Color(0xFF047857) : const Color(0xFFBE123C),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
-
-    if (width != null) {
-      return SizedBox(width: width, child: content);
-    }
-    return Expanded(flex: flex ?? 1, child: content);
-  }
-
-  Widget _buildActionsCell(CategoryModel category, double? width, {int? flex}) {
-    Widget content = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.edit_outlined, color: Color(0xFF6C3CE1), size: 20),
-          onPressed: () async {
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => EditCategoryScreen(
-                  categoryId: category.id,
-                  categoryName: category.categoryName,
-                  categoryImage: category.categoriesImages,
-                  categoryStatus: category.categoryStatus,
-                ),
-              ),
-            );
-            if (result == true) {
-              _fetchCategories();
-            }
-          },
-        ),
-      ],
-    );
-
-    if (width != null) {
-      return SizedBox(width: width, child: content);
-    }
-    return Expanded(flex: flex ?? 1, child: content);
   }
 
   Future<void> _toggleCategoryStatus(CategoryModel category) async {

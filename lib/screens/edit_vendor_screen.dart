@@ -45,7 +45,7 @@ class _EditVendorScreenState extends State<EditVendorScreen> {
     {"id": "3", "name": "Rates"},
   ];
 
-  // Dynamic product rows — each row: {subCategory: String?, productName: ctrl, size: ctrl, rate: ctrl}
+  // Dynamic product rows — each row: {id: int?, subCategory: String?, productName: ctrl, size: ctrl, rate: ctrl}
   final List<Map<String, dynamic>> _productRows = [];
 
   @override
@@ -97,7 +97,7 @@ class _EditVendorScreenState extends State<EditVendorScreen> {
       _productRows.clear();
       for (var sub in subs) {
         _productRows.add({
-          'id': sub['id'],   // keep existing product ID for PUT update
+          'id': sub['id'],   // keep existing product ID for update
           'subCategory': sub['vendor_product_category_sub']?.toString(),
           'productName': TextEditingController(text: sub['vendor_product']?.toString() ?? ''),
           'size': TextEditingController(text: sub['vendor_product_size']?.toString() ?? ''),
@@ -167,7 +167,6 @@ class _EditVendorScreenState extends State<EditVendorScreen> {
       _selectedCategoryName = categoryName;
       _currentSubCategories = [];
       _isLoadingSubCategories = true;
-      // Reset sub-category in all product rows
       for (var row in _productRows) {
         row['subCategory'] = null;
       }
@@ -307,7 +306,7 @@ class _EditVendorScreenState extends State<EditVendorScreen> {
           const SizedBox(height: 8),
           TextFormField(
             controller: controller,
-            keyboardType: isNumber ? TextInputType.number : (isEmail ? TextInputType.emailAddress : TextInputType.text),
+            keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : (isEmail ? TextInputType.emailAddress : TextInputType.text),
             maxLines: maxLines,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             decoration: InputDecoration(
@@ -464,7 +463,7 @@ class _EditVendorScreenState extends State<EditVendorScreen> {
         child: Container(
           height: 56,
           decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.grey.shade200)),
-          child: Center(child: Text('Select a Category first', style: TextStyle(color: Colors.grey.shade500, fontSize: 13, fontWeight: FontWeight.bold))),
+          child: Center(child: Text('Select a Category first in Vendor Details tab', style: TextStyle(color: Colors.grey.shade500, fontSize: 13, fontWeight: FontWeight.bold))),
         ),
       );
     }
@@ -489,81 +488,83 @@ class _EditVendorScreenState extends State<EditVendorScreen> {
     );
   }
 
+  // Beautiful Product Card matching screenshot
   Widget _buildProductCard(int index) {
     final row = _productRows[index];
+    final subCategoryName = row['subCategory'] as String? ?? 'General SubCategory';
+    final nameCtrl = row['productName'] as TextEditingController;
+    final sizeCtrl = row['size'] as TextEditingController;
+    final rateCtrl = row['rate'] as TextEditingController;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade100),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Column(
-        children: [
-          // Card header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF5F0FF),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Row(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Subcategory pill tag & Delete button
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(color: Color(0xFF6C3CE1), shape: BoxShape.circle),
-                      child: Text('${index + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F0FF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    subCategoryName,
+                    style: const TextStyle(
+                      color: Color(0xFF6C3CE1),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
                     ),
-                    const SizedBox(width: 12),
-                    const Text('Product Details', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6C3CE1), fontSize: 14)),
-                  ],
+                  ),
                 ),
                 if (_productRows.length > 1)
                   IconButton(
-                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                    tooltip: 'Remove product',
                     onPressed: () => _removeProductRow(index),
                   ),
               ],
             ),
-          ),
-          // Card body
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: LayoutBuilder(builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 600;
-              if (isWide) {
-                return Column(children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _subCatWidget(row)),
-                      const SizedBox(width: 16),
-                      Expanded(child: _textField('Product Name', row['productName']!)),
-                    ],
-                  ),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _textField('Size', row['size']!)),
-                      const SizedBox(width: 16),
-                      Expanded(child: _textField('Rate', row['rate']!, isNumber: true)),
-                    ],
-                  ),
-                ]);
-              }
-              return Column(children: [
-                _subCatWidget(row),
-                _textField('Product Name', row['productName']!),
-                _textField('Size', row['size']!),
-                _textField('Rate', row['rate']!, isNumber: true),
-              ]);
-            }),
-          ),
-        ],
+            const SizedBox(height: 16),
+
+            // SubCategory dropdown if editing subcategory
+            _subCatWidget(row),
+            const SizedBox(height: 8),
+
+            // Product Name & Size Fields
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _textField('Product Name', nameCtrl)),
+                const SizedBox(width: 14),
+                Expanded(child: _textField('Size', sizeCtrl)),
+              ],
+            ),
+
+            const Divider(height: 20, color: Color(0xFFF3F4F6)),
+            const SizedBox(height: 4),
+
+            // Rate Field (Number Keyboard) matching screenshot
+            _textField('Rate (₹)', rateCtrl, isNumber: true),
+          ],
+        ),
       ),
     );
   }
@@ -596,203 +597,264 @@ class _EditVendorScreenState extends State<EditVendorScreen> {
       ));
     }
 
-    final statusItems = const ['Active', 'Inactive'].map((s) {
-      final isAct = s == 'Active';
-      return DropdownMenuItem<String>(
-        value: s,
-        child: Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: isAct ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                shape: BoxShape.circle,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: Colors.grey.shade50,
+        appBar: AppBar(
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF6C3CE1), Color(0xFF8B5CF6)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
             ),
-            const SizedBox(width: 10),
-            Text(s),
-          ],
-        ),
-      );
-    }).toList();
-
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF6C3CE1), Color(0xFF8B5CF6)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+          ),
+          foregroundColor: Colors.white,
+          title: const Text(
+            'Edit Vendor',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.2,
             ),
           ),
-        ),
-        foregroundColor: Colors.white,
-        title: const Text(
-          'Edit Vendor',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.2,
+          elevation: 0,
+          centerTitle: true,
+          bottom: const TabBar(
+            indicatorColor: Colors.white,
+            indicatorWeight: 3,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            tabs: [
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.inventory_2_outlined, size: 18),
+                    SizedBox(width: 8),
+                    Text('Vendor Products'),
+                  ],
+                ),
+              ),
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.person_outline_rounded, size: 18),
+                    SizedBox(width: 8),
+                    Text('Business & Personal Info'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: _isLoadingData
-                ? const Center(child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(color: Color(0xFF6C3CE1)),
-                      SizedBox(height: 16),
-                      Text('Loading vendor data...', style: TextStyle(color: Colors.grey)),
-                    ],
-                  ))
-                : _errorMessage != null
-                    ? Center(child: Column(
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: _isLoadingData
+                  ? const Center(
+                      child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-                          const SizedBox(height: 12),
-                          Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)),
-                          const SizedBox(height: 16),
-                          ElevatedButton(onPressed: _loadAllData, child: const Text('Retry')),
+                          CircularProgressIndicator(color: Color(0xFF6C3CE1)),
+                          SizedBox(height: 16),
+                          Text('Loading vendor data...', style: TextStyle(color: Colors.grey)),
                         ],
-                      ))
-                    : _isSubmitting
-                        ? const Center(child: CircularProgressIndicator(color: Color(0xFF6C3CE1)))
-                        : Form(
-                            key: _formKey,
-                            child: ListView(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                              children: [
-                                // ── Primary Info ─────────────────────────────
-                                const Text('Primary Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
-                                const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.all(20),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(24),
-                                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 8))],
-                                    border: Border.all(color: Colors.grey.shade200),
-                                  ),
-                                  child: isWide
-                                      ? Column(children: [
-                                          Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Expanded(child: _textField('Vendor Name', _nameCtrl)),
-                                              const SizedBox(width: 16),
-                                              Expanded(child: _textField('Mobile', _mobileCtrl, isNumber: true)),
-                                            ],
-                                          ),
-                                          Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Expanded(child: _textField('Email', _emailCtrl, isEmail: true)),
-                                              const SizedBox(width: 16),
-                                              Expanded(child: _textField('City', _cityCtrl)),
-                                            ],
-                                          ),
-                                          _textField('Address', _addressCtrl, maxLines: 2),
-                                          Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Expanded(child: _dropdown('Category', _selectedCategoryName, categoryItems, _onCategoryChanged)),
-                                              const SizedBox(width: 16),
-                                              Expanded(child: _dropdown('Trader', _selectedTraderId, traderItems, (v) => setState(() => _selectedTraderId = v))),
-                                              const SizedBox(width: 16),
-                                              Expanded(child: _buildStatusToggle()),
-                                            ],
-                                          ),
-                                        ])
-                                      : Column(children: [
-                                          _textField('Vendor Name', _nameCtrl),
-                                          _textField('Mobile', _mobileCtrl, isNumber: true),
-                                          _textField('Email', _emailCtrl, isEmail: true),
-                                          _textField('City', _cityCtrl),
-                                          _textField('Address', _addressCtrl, maxLines: 2),
-                                          _dropdown('Category', _selectedCategoryName, categoryItems, _onCategoryChanged),
-                                          _dropdown('Trader', _selectedTraderId, traderItems, (v) => setState(() => _selectedTraderId = v)),
-                                          _buildStatusToggle(),
-                                        ]),
-                                ),
-                                const SizedBox(height: 32),
-
-                                // ── Products ─────────────────────────────────
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text('Vendor Products', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
-                                    GestureDetector(
-                                      onTap: _addProductRow,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF5F0FF),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: const Color(0xFFE9DEFF)),
-                                        ),
-                                        child: const Row(
+                      ),
+                    )
+                  : _errorMessage != null
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                              const SizedBox(height: 12),
+                              Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)),
+                              const SizedBox(height: 16),
+                              ElevatedButton(onPressed: _loadAllData, child: const Text('Retry')),
+                            ],
+                          ),
+                        )
+                      : _isSubmitting
+                          ? const Center(child: CircularProgressIndicator(color: Color(0xFF6C3CE1)))
+                          : Form(
+                              key: _formKey,
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    child: TabBarView(
+                                      children: [
+                                        // ── TAB 1: Vendor Products ───────────────────
+                                        ListView(
+                                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                                           children: [
-                                            Icon(Icons.add_rounded, size: 18, color: Color(0xFF6C3CE1)),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              'Add Product',
-                                              style: TextStyle(
-                                                color: Color(0xFF6C3CE1),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                const Row(
+                                                  children: [
+                                                    Icon(Icons.edit_note_rounded, color: Color(0xFF6C3CE1), size: 22),
+                                                    SizedBox(width: 8),
+                                                    Text(
+                                                      'Vendor Products',
+                                                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
+                                                    ),
+                                                  ],
+                                                ),
+                                                GestureDetector(
+                                                  onTap: _addProductRow,
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFFF5F0FF),
+                                                      borderRadius: BorderRadius.circular(12),
+                                                      border: Border.all(color: const Color(0xFFE9DEFF)),
+                                                    ),
+                                                    child: const Row(
+                                                      children: [
+                                                        Icon(Icons.add_rounded, size: 18, color: Color(0xFF6C3CE1)),
+                                                        SizedBox(width: 4),
+                                                        Text(
+                                                          'Add Product',
+                                                          style: TextStyle(
+                                                            color: Color(0xFF6C3CE1),
+                                                            fontSize: 12,
+                                                            fontWeight: FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 16),
+                                            ...List.generate(_productRows.length, (i) => _buildProductCard(i)),
+                                          ],
+                                        ),
+
+                                        // ── TAB 2: Business, Personal & Location Info ───
+                                        ListView(
+                                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                                          children: [
+                                            const Text(
+                                              'Business & Personal Information',
+                                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                                            ),
+                                            const SizedBox(height: 14),
+                                            Container(
+                                              padding: const EdgeInsets.all(20),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius: BorderRadius.circular(24),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.black.withOpacity(0.03),
+                                                    blurRadius: 20,
+                                                    offset: const Offset(0, 8),
+                                                  ),
+                                                ],
+                                                border: Border.all(color: Colors.grey.shade200),
                                               ),
+                                              child: isWide
+                                                  ? Column(
+                                                      children: [
+                                                        Row(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: [
+                                                            Expanded(child: _textField('Vendor Name', _nameCtrl)),
+                                                            const SizedBox(width: 16),
+                                                            Expanded(child: _textField('Mobile', _mobileCtrl, isNumber: true)),
+                                                          ],
+                                                        ),
+                                                        Row(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: [
+                                                            Expanded(child: _textField('Email', _emailCtrl, isEmail: true)),
+                                                            const SizedBox(width: 16),
+                                                            Expanded(child: _textField('City', _cityCtrl)),
+                                                          ],
+                                                        ),
+                                                        _textField('Address', _addressCtrl, maxLines: 2),
+                                                        Row(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: [
+                                                            Expanded(child: _dropdown('Category', _selectedCategoryName, categoryItems, _onCategoryChanged)),
+                                                            const SizedBox(width: 16),
+                                                            Expanded(child: _dropdown('Trader', _selectedTraderId, traderItems, (v) => setState(() => _selectedTraderId = v))),
+                                                            const SizedBox(width: 16),
+                                                            Expanded(child: _buildStatusToggle()),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    )
+                                                  : Column(
+                                                      children: [
+                                                        _textField('Vendor Name', _nameCtrl),
+                                                        _textField('Mobile', _mobileCtrl, isNumber: true),
+                                                        _textField('Email', _emailCtrl, isEmail: true),
+                                                        _textField('City', _cityCtrl),
+                                                        _textField('Address', _addressCtrl, maxLines: 2),
+                                                        _dropdown('Category', _selectedCategoryName, categoryItems, _onCategoryChanged),
+                                                        _dropdown('Trader', _selectedTraderId, traderItems, (v) => setState(() => _selectedTraderId = v)),
+                                                        _buildStatusToggle(),
+                                                      ],
+                                                    ),
                                             ),
                                           ],
                                         ),
-                                      ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
+                                  ),
 
-                                ...List.generate(_productRows.length, (i) => _buildProductCard(i)),
-
-                                const SizedBox(height: 32),
-
-                                // ── Submit ───────────────────────────────────
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 52,
-                                  child: ElevatedButton(
-                                    onPressed: _submitUpdate,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF6C3CE1),
-                                      foregroundColor: Colors.white,
-                                      elevation: 4,
-                                      shadowColor: const Color(0xFF6C3CE1).withOpacity(0.3),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
+                                  // ── Bottom Persistent Save Button ─────────────────
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.04),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, -4),
+                                        ),
+                                      ],
+                                      border: Border(top: BorderSide(color: Colors.grey.shade200)),
                                     ),
-                                    child: const Text(
-                                      'Save Changes',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 0.3,
+                                    child: SizedBox(
+                                      width: double.infinity,
+                                      height: 50,
+                                      child: ElevatedButton(
+                                        onPressed: _submitUpdate,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF6C3CE1),
+                                          foregroundColor: Colors.white,
+                                          elevation: 2,
+                                          shadowColor: const Color(0xFF6C3CE1).withOpacity(0.3),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'Save Changes',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 40),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
+            ),
           ),
         ),
       ),

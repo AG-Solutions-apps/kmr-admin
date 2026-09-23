@@ -2,6 +2,7 @@ class VendorSpotRateModel {
   final int id;
   final String vendorName;
   final int vendorId;
+  final String vendorCategory;
   final String vendorSpotHeading;
   final String vendorSpotDetails;
   String vendorSpotStatus;
@@ -12,6 +13,7 @@ class VendorSpotRateModel {
     required this.id,
     required this.vendorName,
     required this.vendorId,
+    required this.vendorCategory,
     required this.vendorSpotHeading,
     required this.vendorSpotDetails,
     required this.vendorSpotStatus,
@@ -28,6 +30,7 @@ class VendorSpotRateModel {
           ? json['vendor_id'] 
           : int.tryParse(json['vendor_id']?.toString() ?? '') ?? 0,
       vendorName: json['vendor_name']?.toString() ?? '',
+      vendorCategory: json['vendor_category']?.toString() ?? json['category']?.toString() ?? '',
       vendorSpotHeading: json['vendor_spot_heading']?.toString() ?? '',
       vendorSpotDetails: json['vendor_spot_details']?.toString() ?? '',
       vendorSpotStatus: json['vendor_spot_status']?.toString() ?? 'Active',
@@ -41,6 +44,7 @@ class VendorSpotRateModel {
       'id': id,
       'vendor_id': vendorId,
       'vendor_name': vendorName,
+      'vendor_category': vendorCategory,
       'vendor_spot_heading': vendorSpotHeading,
       'vendor_spot_details': vendorSpotDetails,
       'vendor_spot_status': vendorSpotStatus,
