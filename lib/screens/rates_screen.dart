@@ -232,6 +232,8 @@ class _RatesScreenState extends State<RatesScreen> {
                 ),
                 Expanded(
                   child: TextField(
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(
                       hintText: 'Search by vendor name, category, or mobile...',
                       border: InputBorder.none,

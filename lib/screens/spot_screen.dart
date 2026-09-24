@@ -300,6 +300,8 @@ class _SpotScreenState extends State<SpotScreen> {
                 ),
                 Expanded(
                   child: TextField(
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(
                       hintText: 'Search by vendor, heading, or details...',
                       border: InputBorder.none,
@@ -823,6 +825,7 @@ class _SpotScreenState extends State<SpotScreen> {
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: headingCtrl,
+                        textCapitalization: TextCapitalization.words,
                         decoration: InputDecoration(
                           hintText: 'Enter spot heading...',
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
@@ -839,6 +842,7 @@ class _SpotScreenState extends State<SpotScreen> {
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: detailsCtrl,
+                        textCapitalization: TextCapitalization.sentences,
                         maxLines: 3,
                         decoration: InputDecoration(
                           hintText: 'Enter spot details...',
@@ -988,6 +992,7 @@ class _SpotScreenState extends State<SpotScreen> {
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: headingCtrl,
+                        textCapitalization: TextCapitalization.words,
                         decoration: InputDecoration(
                           hintText: 'Enter heading...',
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
@@ -1004,6 +1009,7 @@ class _SpotScreenState extends State<SpotScreen> {
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: detailsCtrl,
+                        textCapitalization: TextCapitalization.sentences,
                         maxLines: 3,
                         decoration: InputDecoration(
                           hintText: 'Enter details...',

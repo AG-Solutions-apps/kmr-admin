@@ -287,6 +287,8 @@ class _VendorUserScreenState extends State<VendorUserScreen> {
                 ),
                 Expanded(
                   child: TextField(
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(
                       hintText: 'Search vendor users...',
                       border: InputBorder.none,

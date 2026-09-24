@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:krm_admin/services/auth_service.dart';
 import 'package:krm_admin/services/vendor_service.dart';
+import 'package:krm_admin/utils/capitalize_formatter.dart';
 
 class EditVendorScreen extends StatefulWidget {
   final int vendorId;
@@ -306,6 +307,8 @@ class _EditVendorScreenState extends State<EditVendorScreen> {
           const SizedBox(height: 8),
           TextFormField(
             controller: controller,
+            textCapitalization: maxLines > 1 ? TextCapitalization.sentences : TextCapitalization.words,
+            inputFormatters: isNumber || isEmail ? null : [FirstLetterCapitalizeFormatter(capitalizeWords: maxLines <= 1)],
             keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : (isEmail ? TextInputType.emailAddress : TextInputType.text),
             maxLines: maxLines,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
