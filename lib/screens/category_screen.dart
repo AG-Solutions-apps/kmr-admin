@@ -277,6 +277,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 ),
                 Expanded(
                   child: TextField(
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(
                       hintText: 'Search categories...',
                       border: InputBorder.none,

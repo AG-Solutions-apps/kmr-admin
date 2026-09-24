@@ -316,6 +316,8 @@ class _VendorScreenState extends State<VendorScreen> {
                 ),
                 Expanded(
                   child: TextField(
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(
                       hintText: 'Search by vendor name, mobile, category...',
                       border: InputBorder.none,
@@ -813,26 +815,31 @@ class _VendorScreenState extends State<VendorScreen> {
                     _buildCell('${globalIndex + 1}', 60),
                     _buildCell(vendor.vendorName, null, flex: 3, isBold: true),
                     _buildCell(vendor.vendorMobile, null, flex: 2),
-                    TableCell(
+                    Expanded(
+                      flex: 2,
                       child: Padding(
                         padding: const EdgeInsets.only(right: 12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F0FF),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            vendor.vendorCategory, 
-                            style: const TextStyle(color: Color(0xFF6C3CE1), fontSize: 12, fontWeight: FontWeight.bold),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF5F0FF),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              vendor.vendorCategory, 
+                              style: const TextStyle(color: Color(0xFF6C3CE1), fontSize: 12, fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
                       ),
                     ),
                     _buildCell(vendor.vendorTrader, null, flex: 2),
-                    TableCell(
+                    Expanded(
+                      flex: 2,
                       child: Row(
                         children: [
                           const Icon(Icons.inventory_2_outlined, size: 14, color: Colors.grey),

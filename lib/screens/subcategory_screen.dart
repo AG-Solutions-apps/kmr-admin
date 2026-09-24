@@ -303,6 +303,8 @@ class _SubCategoryScreenState extends State<SubCategoryScreen> {
                 ),
                 Expanded(
                   child: TextField(
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(
                       hintText: 'Search sub-categories...',
                       border: InputBorder.none,

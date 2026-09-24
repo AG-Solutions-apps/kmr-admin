@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:krm_admin/models/news_model.dart';
@@ -287,6 +288,8 @@ class _NewsScreenState extends State<NewsScreen> {
                 ),
                 Expanded(
                   child: TextField(
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(
                       hintText: 'Search by headlines or content...',
                       border: InputBorder.none,
@@ -901,10 +904,15 @@ class _NewsScreenState extends State<NewsScreen> {
                                       Positioned.fill(
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(14),
-                                          child: Image.file(
-                                            File(selectedImage!.path),
-                                            fit: BoxFit.cover,
-                                          ),
+                                          child: kIsWeb
+                                              ? Image.network(
+                                                  selectedImage!.path,
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : Image.file(
+                                                  File(selectedImage!.path),
+                                                  fit: BoxFit.cover,
+                                                ),
                                         ),
                                       ),
                                       Positioned(
@@ -943,6 +951,7 @@ class _NewsScreenState extends State<NewsScreen> {
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: headlinesCtrl,
+                          textCapitalization: TextCapitalization.sentences,
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                           decoration: InputDecoration(
                             hintText: 'Enter News Headlines',
@@ -970,6 +979,7 @@ class _NewsScreenState extends State<NewsScreen> {
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: contentCtrl,
+                          textCapitalization: TextCapitalization.sentences,
                           maxLines: 6,
                           keyboardType: TextInputType.multiline,
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
@@ -1199,10 +1209,15 @@ class _NewsScreenState extends State<NewsScreen> {
                                       Positioned.fill(
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(14),
-                                          child: Image.file(
-                                            File(selectedImage!.path),
-                                            fit: BoxFit.cover,
-                                          ),
+                                          child: kIsWeb
+                                              ? Image.network(
+                                                  selectedImage!.path,
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : Image.file(
+                                                  File(selectedImage!.path),
+                                                  fit: BoxFit.cover,
+                                                ),
                                         ),
                                       ),
                                       Positioned(
@@ -1268,6 +1283,7 @@ class _NewsScreenState extends State<NewsScreen> {
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: headlinesCtrl,
+                          textCapitalization: TextCapitalization.sentences,
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                           decoration: InputDecoration(
                             hintText: 'Enter News Headlines',
@@ -1295,6 +1311,7 @@ class _NewsScreenState extends State<NewsScreen> {
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: contentCtrl,
+                          textCapitalization: TextCapitalization.sentences,
                           maxLines: 6,
                           keyboardType: TextInputType.multiline,
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),

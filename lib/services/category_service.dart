@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:krm_admin/models/category_model.dart';
@@ -67,18 +68,37 @@ class CategoryService {
       request.fields['category_name'] = categoryName.trim();
 
       // Add image if selected
-      if (imageFile != null && await imageFile.exists()) {
-        var stream = http.ByteStream(imageFile.openRead());
-        var length = await imageFile.length();
-        var multipartFile = http.MultipartFile(
-          'categories_images',
-          stream,
-          length,
-          filename: imageFile.path.split('/').last,
-          contentType: MediaType('image', 'jpeg'),
-        );
-        request.files.add(multipartFile);
-        print('Image added to request: ${imageFile.path}');
+      if (imageFile != null) {
+        if (kIsWeb) {
+          try {
+            final res = await http.get(Uri.parse(imageFile.path));
+            if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
+              request.files.add(
+                http.MultipartFile.fromBytes(
+                  'categories_images',
+                  res.bodyBytes,
+                  filename: 'upload.jpg',
+                  contentType: MediaType('image', 'jpeg'),
+                ),
+              );
+              print('Web image attached to category request, size: ${res.bodyBytes.length}');
+            }
+          } catch (e) {
+            print('Error loading web image blob: $e');
+          }
+        } else if (await imageFile.exists()) {
+          var stream = http.ByteStream(imageFile.openRead());
+          var length = await imageFile.length();
+          var multipartFile = http.MultipartFile(
+            'categories_images',
+            stream,
+            length,
+            filename: imageFile.path.split('/').last,
+            contentType: MediaType('image', 'jpeg'),
+          );
+          request.files.add(multipartFile);
+          print('Image added to request: ${imageFile.path}');
+        }
       }
 
       print('Create Category Request Fields: ${request.fields}');
@@ -133,18 +153,37 @@ class CategoryService {
       request.fields['category_status'] = status;
 
       // Add image if selected
-      if (imageFile != null && await imageFile.exists()) {
-        var stream = http.ByteStream(imageFile.openRead());
-        var length = await imageFile.length();
-        var multipartFile = http.MultipartFile(
-          'categories_images',
-          stream,
-          length,
-          filename: imageFile.path.split('/').last,
-          contentType: MediaType('image', 'jpeg'),
-        );
-        request.files.add(multipartFile);
-        print('Image added to update request: ${imageFile.path}');
+      if (imageFile != null) {
+        if (kIsWeb) {
+          try {
+            final res = await http.get(Uri.parse(imageFile.path));
+            if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
+              request.files.add(
+                http.MultipartFile.fromBytes(
+                  'categories_images',
+                  res.bodyBytes,
+                  filename: 'upload.jpg',
+                  contentType: MediaType('image', 'jpeg'),
+                ),
+              );
+              print('Web image attached to category update request, size: ${res.bodyBytes.length}');
+            }
+          } catch (e) {
+            print('Error loading web image blob: $e');
+          }
+        } else if (await imageFile.exists()) {
+          var stream = http.ByteStream(imageFile.openRead());
+          var length = await imageFile.length();
+          var multipartFile = http.MultipartFile(
+            'categories_images',
+            stream,
+            length,
+            filename: imageFile.path.split('/').last,
+            contentType: MediaType('image', 'jpeg'),
+          );
+          request.files.add(multipartFile);
+          print('Image added to update request: ${imageFile.path}');
+        }
       }
 
       print('Update Category Request Fields: ${request.fields}');

@@ -7,7 +7,6 @@ import 'package:krm_admin/screens/category_screen.dart';
 import 'package:krm_admin/screens/subcategory_screen.dart';
 import 'package:krm_admin/screens/vendor_screen.dart';
 import 'package:krm_admin/screens/vendor_user_screen.dart';
-import 'package:krm_admin/screens/app_update_screen.dart';
 import 'package:krm_admin/screens/notification_screen.dart';
 import 'package:krm_admin/screens/live_screen.dart';
 import 'package:krm_admin/screens/rates_screen.dart';
@@ -35,36 +34,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final AuthService _authService = AuthService();
   UserModel? _userData;
   int _selectedIndex = 0;
-  bool _isMasterExpanded = false;
-  bool _isAppUpdateExpanded = false;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-
-  final List<Map<String, dynamic>> _menuItems = [
-    {
-      'title': 'Master',
-      'icon': Icons.dashboard_customize_outlined,
-      'type': 'parent',
-      'children': [
-        {'title': 'Category', 'icon': Icons.category_outlined, 'index': 1},
-        {'title': 'SubCategory', 'icon': Icons.list_alt_outlined, 'index': 2},
-        {'title': 'Vendor', 'icon': Icons.storefront_outlined, 'index': 3},
-        // {'title': 'Vendor User', 'icon': Icons.person_outline, 'index': 4},
-      ],
-    },
-    {
-      'title': 'App Update',
-      'icon': Icons.system_update_alt_outlined,
-      'type': 'parent',
-      'children': [
-        {'title': 'Live', 'icon': Icons.live_tv_outlined, 'index': 6},
-        {'title': 'Rates', 'icon': Icons.attach_money_outlined, 'index': 7},
-        {'title': 'Spot', 'icon': Icons.bolt_outlined, 'index': 8},
-        {'title': 'News', 'icon': Icons.newspaper_outlined, 'index': 9},
-      ],
-    },
-    
-  ];
 
   final List<String> _titles = [
     'Dashboard',
@@ -128,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
-              width: 280,
+              width: 240,
               child: _buildPremiumDrawerContent(isDesktop: true),
             ),
             Expanded(
@@ -243,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   PreferredSizeWidget _buildPremiumAppBar({bool isDesktop = false}) {
     return PreferredSize(
-      preferredSize: const Size.fromHeight(100),
+      preferredSize: const Size.fromHeight(80),
       child: Container(
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -257,9 +228,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF6C3CE1).withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
+              color: const Color(0xFF6C3CE1).withOpacity(0.2),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -307,9 +278,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Welcome back, ${_userData?.name?.split(' ').first ?? 'Admin'}!',
+                        'Welcome back, ${(_userData?.name != null && _userData!.name.isNotEmpty) ? _userData!.name.split(' ').first : 'Admin'}!',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
+                          color: Colors.white.withOpacity(0.75),
                           fontSize: 12,
                           fontWeight: FontWeight.w400,
                         ),
@@ -403,77 +374,132 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
       child: Column(
         children: [
-          // Premium Header
+          // Header matching top navbar gradient and height
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
+            height: isDesktop ? 80 : null,
+            padding: isDesktop
+                ? const EdgeInsets.symmetric(horizontal: 16)
+                : const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
                   Color(0xFF6C3CE1),
                   Color(0xFF8B5CF6),
+                  Color(0xFFA78BFA),
                 ],
               ),
-              borderRadius: const BorderRadius.only(
-                bottomRight: Radius.circular(30),
-              ),
             ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.white.withOpacity(0.3),
-                        Colors.white.withOpacity(0.1),
-                      ],
-                    ),
-                  ),
-                  child: CircleAvatar(
-                    radius: 45,
-                    backgroundColor: Colors.white,
-                    child: Text(
-                      _userData?.name?.substring(0, 1).toUpperCase() ?? 'A',
-                      style: const TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6C3CE1),
+            child: isDesktop
+                ? Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                        child: CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Colors.white,
+                          child: Text(
+                            (_userData?.name != null && _userData!.name.isNotEmpty)
+                                ? _userData!.name[0].toUpperCase()
+                                : 'A',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF6C3CE1),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _userData?.name ?? 'Admin User',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.3,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _userData?.email ?? 'admin@mail.com',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 11,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.2),
+                        ),
+                        child: CircleAvatar(
+                          radius: 36,
+                          backgroundColor: Colors.white,
+                          child: Text(
+                            (_userData?.name != null && _userData!.name.isNotEmpty)
+                                ? _userData!.name[0].toUpperCase()
+                                : 'A',
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF6C3CE1),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _userData?.name ?? 'Admin User',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _userData?.email ?? 'admin@mail.com',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _userData?.name ?? 'Admin User',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _userData?.email ?? 'admin@mail.com',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 13,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
           ),
-          const SizedBox(height: 8),
-          // Menu Items
+          const SizedBox(height: 4),
+          // Menu Items - Always open sections (No dropdowns)
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               children: [
                 _buildPremiumMenuItem(
                   'Dashboard',
@@ -482,32 +508,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   isSelected: _selectedIndex == 0,
                   isDesktop: isDesktop,
                 ),
-                const Divider(height: 16, color: Colors.grey, thickness: 0.5),
-                // Master Menu
-                _buildPremiumParentMenu(
-                  'Master',
-                  Icons.dashboard_customize_rounded,
-                  _isMasterExpanded,
-                  [
-                    _buildPremiumMenuItem('Category', Icons.category_rounded, 1, isChild: true, isSelected: _selectedIndex == 1, isDesktop: isDesktop),
-                    _buildPremiumMenuItem('SubCategory', Icons.list_alt_rounded, 2, isChild: true, isSelected: _selectedIndex == 2, isDesktop: isDesktop),
-                    _buildPremiumMenuItem('Vendor', Icons.storefront_rounded, 3, isChild: true, isSelected: _selectedIndex == 3, isDesktop: isDesktop),
-                    // _buildPremiumMenuItem('Vendor User', Icons.person_rounded, 4, isChild: true, isSelected: _selectedIndex == 4, isDesktop: isDesktop),
-                  ],
-                ),
-                // App Update Menu
-                _buildPremiumParentMenu(
-                  'App Update',
-                  Icons.system_update_rounded,
-                  _isAppUpdateExpanded,
-                  [
-                    _buildPremiumMenuItem('Live', Icons.live_tv_rounded, 6, isChild: true, isSelected: _selectedIndex == 6, isDesktop: isDesktop),
-                    _buildPremiumMenuItem('Rates', Icons.attach_money_rounded, 7, isChild: true, isSelected: _selectedIndex == 7, isDesktop: isDesktop),
-                    _buildPremiumMenuItem('Spot', Icons.bolt_rounded, 8, isChild: true, isSelected: _selectedIndex == 8, isDesktop: isDesktop),
-                    _buildPremiumMenuItem('News', Icons.newspaper_rounded, 9, isChild: true, isSelected: _selectedIndex == 9, isDesktop: isDesktop),
-                  ],
-                ),
+                const SizedBox(height: 8),
                 
+                // Master Section (Always Open)
+                _buildSectionHeader('Master', Icons.dashboard_customize_rounded),
+                _buildPremiumMenuItem('Category', Icons.category_rounded, 1, isChild: true, isSelected: _selectedIndex == 1, isDesktop: isDesktop),
+                _buildPremiumMenuItem('SubCategory', Icons.list_alt_rounded, 2, isChild: true, isSelected: _selectedIndex == 2, isDesktop: isDesktop),
+                _buildPremiumMenuItem('Vendor', Icons.storefront_rounded, 3, isChild: true, isSelected: _selectedIndex == 3, isDesktop: isDesktop),
+                
+                const SizedBox(height: 8),
+                
+                // App Update Section (Always Open)
+                _buildSectionHeader('App Update', Icons.system_update_rounded),
+                _buildPremiumMenuItem('Live', Icons.live_tv_rounded, 6, isChild: true, isSelected: _selectedIndex == 6, isDesktop: isDesktop),
+                _buildPremiumMenuItem('Rates', Icons.attach_money_rounded, 7, isChild: true, isSelected: _selectedIndex == 7, isDesktop: isDesktop),
+                _buildPremiumMenuItem('Spot', Icons.bolt_rounded, 8, isChild: true, isSelected: _selectedIndex == 8, isDesktop: isDesktop),
+                _buildPremiumMenuItem('News', Icons.newspaper_rounded, 9, isChild: true, isSelected: _selectedIndex == 9, isDesktop: isDesktop),
+                
+                const SizedBox(height: 12),
+                const Divider(height: 1, color: Color(0xFFEEEEEE)),
                 const SizedBox(height: 8),
                 _buildPremiumMenuItem(
                   'Logout',
@@ -524,62 +543,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildPremiumParentMenu(
-    String title,
-    IconData icon,
-    bool isExpanded,
-    List<Widget> children,
-  ) {
-    return Column(
-      children: [
-        Container(
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: isExpanded ? const Color(0xFFF5F0FF) : Colors.transparent,
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 4),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 15,
+            color: const Color(0xFF6C3CE1),
           ),
-          child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isExpanded ? const Color(0xFF6C3CE1).withOpacity(0.1) : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: isExpanded ? const Color(0xFF6C3CE1) : Colors.grey.shade600,
-                size: 22,
-              ),
-            ),
-            title: Text(
-              title,
-              style: TextStyle(
-                fontWeight: isExpanded ? FontWeight.w700 : FontWeight.w600,
-                color: isExpanded ? const Color(0xFF6C3CE1) : Colors.grey.shade800,
-                fontSize: 15,
-                letterSpacing: 0.3,
-              ),
-            ),
-            trailing: Icon(
-              isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-              color: isExpanded ? const Color(0xFF6C3CE1) : Colors.grey.shade400,
-            ),
-            onTap: () {
-              setState(() {
-                _isMasterExpanded = title == 'Master' ? !_isMasterExpanded : false;
-                _isAppUpdateExpanded = title == 'App Update' ? !_isAppUpdateExpanded : false;
-              });
-            },
-          ),
-        ),
-        if (isExpanded)
-          Padding(
-            padding: const EdgeInsets.only(left: 20),
-            child: Column(
-              children: children,
+          const SizedBox(width: 6),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF6C3CE1),
+              letterSpacing: 0.5,
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 

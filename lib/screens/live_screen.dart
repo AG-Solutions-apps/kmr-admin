@@ -290,6 +290,8 @@ class _LiveScreenState extends State<LiveScreen> {
                 ),
                 Expanded(
                   child: TextField(
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(
                       hintText: 'Search by vendor, subcategory, or product...',
                       border: InputBorder.none,

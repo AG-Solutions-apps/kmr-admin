@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:krm_admin/models/category_dropdown_model.dart';
@@ -89,13 +90,6 @@ class _AddSubCategoryScreenState extends State<AddSubCategoryScreen> {
       return;
     }
 
-    if (_selectedImage == null) {
-      setState(() {
-        _errorMessage = 'Please select an image';
-      });
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -156,257 +150,270 @@ class _AddSubCategoryScreenState extends State<AddSubCategoryScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 550),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+                border: Border.all(color: Colors.grey.shade200),
               ),
-            ],
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_errorMessage != null) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.red.shade100),
-                    ),
-                    child: Row(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_errorMessage != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.red.shade100),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline_rounded, color: Colors.red.shade700, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: TextStyle(color: Colors.red.shade700, fontSize: 13, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // Category Selection Field
+                    const Row(
                       children: [
-                        Icon(Icons.error_outline_rounded, color: Colors.red.shade700, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(color: Colors.red.shade700, fontSize: 13, fontWeight: FontWeight.bold),
+                        Icon(Icons.list_alt_rounded, size: 18, color: Colors.grey),
+                        SizedBox(width: 8),
+                        Text(
+                          'Parent Category *',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                            fontSize: 13,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                    const SizedBox(height: 8),
+                    _isLoadingCategories
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: SizedBox(
+                                height: 28,
+                                width: 28,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6C3CE1)),
+                              ),
+                            ),
+                          )
+                        : Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                value: _selectedCategoryId,
+                                isExpanded: true,
+                                icon: const Icon(Icons.arrow_drop_down_rounded, color: Colors.grey),
+                                iconSize: 28,
+                                elevation: 16,
+                                style: const TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                onChanged: (int? newValue) {
+                                  setState(() {
+                                    _selectedCategoryId = newValue;
+                                  });
+                                },
+                                items: _categories
+                                    .map<DropdownMenuItem<int>>((CategoryDropdownModel category) {
+                                  return DropdownMenuItem<int>(
+                                    value: category.id,
+                                    child: Text(category.categoryName),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ),
+                    const SizedBox(height: 20),
 
-                // Category Selection Field
-                const Row(
-                  children: [
-                    Icon(Icons.list_alt_rounded, size: 18, color: Colors.grey),
-                    SizedBox(width: 8),
-                    Text(
-                      'Parent Category *',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                _isLoadingCategories
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: SizedBox(
-                            height: 28,
-                            width: 28,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6C3CE1)),
+                    // Sub-Category Name Field
+                    const Row(
+                      children: [
+                        Icon(Icons.category_outlined, size: 18, color: Colors.grey),
+                        SizedBox(width: 8),
+                        Text(
+                          'Sub-Category Name *',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                            fontSize: 13,
                           ),
                         ),
-                      )
-                    : Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _subCategoryNameController,
+                      textCapitalization: TextCapitalization.words,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      decoration: InputDecoration(
+                        hintText: 'Enter sub-category name',
+                        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFF6C3CE1), width: 1.5),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Image Field
+                    const Row(
+                      children: [
+                        Icon(Icons.image_outlined, size: 18, color: Colors.grey),
+                        SizedBox(width: 8),
+                        Text(
+                          'Sub Category Image (Optional)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Container(
+                        height: 110,
+                        width: double.infinity,
                         decoration: BoxDecoration(
                           color: Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<int>(
-                            value: _selectedCategoryId,
-                            isExpanded: true,
-                            icon: const Icon(Icons.arrow_drop_down_rounded, color: Colors.grey),
-                            iconSize: 28,
-                            elevation: 16,
-                            style: const TextStyle(
-                              color: Colors.black87,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            onChanged: (int? newValue) {
-                              setState(() {
-                                _selectedCategoryId = newValue;
-                              });
-                            },
-                            items: _categories
-                                .map<DropdownMenuItem<int>>((CategoryDropdownModel category) {
-                              return DropdownMenuItem<int>(
-                                value: category.id,
-                                child: Text(category.categoryName),
-                              );
-                            }).toList(),
+                          border: Border.all(
+                            color: Colors.grey.shade300,
+                            width: 1.2,
                           ),
                         ),
+                        child: _selectedImage != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    kIsWeb
+                                        ? Image.network(
+                                            _selectedImage!.path,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return _buildImagePlaceholder();
+                                            },
+                                          )
+                                        : Image.file(
+                                            _selectedImage!,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return _buildImagePlaceholder();
+                                            },
+                                          ),
+                                    Container(
+                                      color: Colors.black.withOpacity(0.25),
+                                    ),
+                                    const Center(
+                                      child: CircleAvatar(
+                                        backgroundColor: Colors.white,
+                                        radius: 18,
+                                        child: Icon(Icons.edit_rounded, color: Color(0xFF6C3CE1), size: 16),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : _buildImagePlaceholder(),
                       ),
-                const SizedBox(height: 22),
-
-                // Sub-Category Name Field
-                const Row(
-                  children: [
-                    Icon(Icons.category_outlined, size: 18, color: Colors.grey),
-                    SizedBox(width: 8),
+                    ),
+                    const SizedBox(height: 6),
                     Text(
-                      'Sub-Category Name *',
+                      'Upload sub-category display image (PNG, JPG, WEBP formats supported)',
                       style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                        fontSize: 13,
+                        fontSize: 11,
+                        color: Colors.grey.shade400,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Save Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _saveSubCategory,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6C3CE1),
+                          foregroundColor: Colors.white,
+                          elevation: 2,
+                          shadowColor: const Color(0xFF6C3CE1).withOpacity(0.3),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Save Sub-Category',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _subCategoryNameController,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                  decoration: InputDecoration(
-                    hintText: 'Enter sub-category name',
-                    hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFF6C3CE1), width: 1.5),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  ),
-                ),
-                const SizedBox(height: 22),
-
-                // Image Field
-                const Row(
-                  children: [
-                    Icon(Icons.image_outlined, size: 18, color: Colors.grey),
-                    SizedBox(width: 8),
-                    Text(
-                      'Sub-Category Image *',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: _pickImage,
-                  child: Container(
-                    height: 160,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.grey.shade300,
-                        width: 1.5,
-                        style: BorderStyle.solid,
-                      ),
-                    ),
-                    child: _selectedImage != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                Image.file(
-                                  _selectedImage!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return _buildImagePlaceholder();
-                                  },
-                                ),
-                                Container(
-                                  color: Colors.black.withOpacity(0.2),
-                                ),
-                                const Center(
-                                  child: CircleAvatar(
-                                    backgroundColor: Colors.white,
-                                    radius: 20,
-                                    child: Icon(Icons.edit_rounded, color: Color(0xFF6C3CE1), size: 18),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : _buildImagePlaceholder(),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Upload sub-category display image (PNG, JPG, WEBP formats supported)',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade400,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Save Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _saveSubCategory,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6C3CE1),
-                      foregroundColor: Colors.white,
-                      elevation: 4,
-                      shadowColor: const Color(0xFF6C3CE1).withOpacity(0.3),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Save Sub-Category',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:krm_admin/models/news_model.dart';
@@ -8,6 +9,22 @@ import 'package:http_parser/http_parser.dart';
 class NewsService {
   static const String baseUrl = 'https://kmrlive.in/public/api';
   final AuthService _authService = AuthService();
+
+  /// Sanitizes text to convert unsupported/special Unicode characters and emojis
+  /// into normal MySQL-safe text while preserving line breaks and paragraph formatting.
+  static String sanitizeText(String text) {
+    return text
+        .replaceAll(RegExp(r'[\u{1F300}-\u{1FAFF}]', unicode: true), '')
+        .replaceAll(RegExp(r'[\u{1F1E6}-\u{1F1FF}]', unicode: true), '')
+        .replaceAll(RegExp(r'[\u{2600}-\u{27BF}]', unicode: true), '')
+        .replaceAll('₹', 'Rs.')
+        .replaceAll('‘', "'")
+        .replaceAll('’', "'")
+        .replaceAll('“', '"')
+        .replaceAll('”', '"')
+        .replaceAll('–', '-')
+        .replaceAll('—', '-');
+  }
 
   // Fetch all news items
   Future<List<NewsModel>> fetchNewsList() async {
@@ -62,17 +79,38 @@ class NewsService {
         'Authorization': 'Bearer $token',
       });
 
-      request.fields['news_headlines'] = headlines;
-      request.fields['news_content'] = content;
+      final safeHeadlines = sanitizeText(headlines);
+      final safeContent = sanitizeText(content);
+
+      request.fields['news_headlines'] = safeHeadlines;
+      request.fields['news_content'] = safeContent;
 
       if (image != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'news_image',
-            image.path,
-            contentType: MediaType('image', 'jpeg'),
-          ),
-        );
+        if (kIsWeb) {
+          try {
+            final res = await http.get(Uri.parse(image.path));
+            if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
+              request.files.add(
+                http.MultipartFile.fromBytes(
+                  'news_image',
+                  res.bodyBytes,
+                  filename: 'upload.jpg',
+                  contentType: MediaType('image', 'jpeg'),
+                ),
+              );
+            }
+          } catch (e) {
+            print('Error loading web news image blob: $e');
+          }
+        } else {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'news_image',
+              image.path,
+              contentType: MediaType('image', 'jpeg'),
+            ),
+          );
+        }
       }
 
       var streamedResponse = await request.send();
@@ -125,18 +163,39 @@ class NewsService {
         'Authorization': 'Bearer $token',
       });
 
-      request.fields['news_headlines'] = headlines;
-      request.fields['news_content'] = content;
+      final safeHeadlines = sanitizeText(headlines);
+      final safeContent = sanitizeText(content);
+
+      request.fields['news_headlines'] = safeHeadlines;
+      request.fields['news_content'] = safeContent;
       request.fields['news_status'] = status;
 
       if (image != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'news_image',
-            image.path,
-            contentType: MediaType('image', 'jpeg'),
-          ),
-        );
+        if (kIsWeb) {
+          try {
+            final res = await http.get(Uri.parse(image.path));
+            if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
+              request.files.add(
+                http.MultipartFile.fromBytes(
+                  'news_image',
+                  res.bodyBytes,
+                  filename: 'upload.jpg',
+                  contentType: MediaType('image', 'jpeg'),
+                ),
+              );
+            }
+          } catch (e) {
+            print('Error loading web news image blob: $e');
+          }
+        } else {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'news_image',
+              image.path,
+              contentType: MediaType('image', 'jpeg'),
+            ),
+          );
+        }
       }
 
       var streamedResponse = await request.send();

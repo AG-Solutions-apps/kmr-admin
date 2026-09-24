@@ -150,6 +150,7 @@ class _AddVendorUserScreenState extends State<AddVendorUserScreen> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _nameController,
+                    textCapitalization: TextCapitalization.words,
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                     decoration: InputDecoration(
                       hintText: 'Enter Name',
