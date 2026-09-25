@@ -22,6 +22,7 @@ import 'package:krm_admin/models/vendor_model.dart';
 import 'package:krm_admin/models/vendor_spot_rate_model.dart';
 import 'package:krm_admin/models/news_model.dart';
 import 'package:krm_admin/screens/profile_screen.dart';
+import 'package:krm_admin/screens/slider_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     'Rates',
     'Spot',
     'News',
+    'App Slider',
   ];
 
   @override
@@ -515,7 +517,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 _buildPremiumMenuItem('Category', Icons.category_rounded, 1, isChild: true, isSelected: _selectedIndex == 1, isDesktop: isDesktop),
                 _buildPremiumMenuItem('SubCategory', Icons.list_alt_rounded, 2, isChild: true, isSelected: _selectedIndex == 2, isDesktop: isDesktop),
                 _buildPremiumMenuItem('Vendor', Icons.storefront_rounded, 3, isChild: true, isSelected: _selectedIndex == 3, isDesktop: isDesktop),
+                _buildPremiumMenuItem('Vendor User', Icons.people_alt_rounded, 4, isChild: true, isSelected: _selectedIndex == 4, isDesktop: isDesktop),
                 
+                // Super Admin Exclusive Section (user_type == 4)
+                if (_userData?.isSuperAdmin == true) ...[
+                  const SizedBox(height: 8),
+                  _buildSectionHeader('Super Admin Tools', Icons.admin_panel_settings_rounded),
+                  _buildPremiumMenuItem('Notification', Icons.notifications_active_rounded, 5, isChild: true, isSelected: _selectedIndex == 5, isDesktop: isDesktop),
+                  _buildPremiumMenuItem('App Slider', Icons.view_carousel_rounded, 10, isChild: true, isSelected: _selectedIndex == 10, isDesktop: isDesktop),
+                ],
+
                 const SizedBox(height: 8),
                 
                 // App Update Section (Always Open)
@@ -636,6 +647,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildBody() {
+    final bool isSuperAdmin = _userData?.isSuperAdmin ?? false;
+
     switch (_selectedIndex) {
       case 0:
         return DashboardContent(
@@ -644,6 +657,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               _selectedIndex = index;
             });
           },
+          isSuperAdmin: isSuperAdmin,
         );
       case 1:
         return const CategoryScreen();
@@ -654,7 +668,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       case 4:
         return const VendorUserScreen();
       case 5:
-        return const NotificationScreen();
+        return isSuperAdmin
+            ? const NotificationScreen()
+            : _buildAccessDeniedView('Notification Management');
       case 6:
         return const LiveScreen();
       case 7:
@@ -663,6 +679,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         return const SpotScreen();
       case 9:
         return const NewsScreen();
+      case 10:
+        return isSuperAdmin
+            ? const AppSliderScreen()
+            : _buildAccessDeniedView('App Slider Banner Management');
       default:
         return DashboardContent(
           onNavigate: (index) {
@@ -670,15 +690,62 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               _selectedIndex = index;
             });
           },
+          isSuperAdmin: isSuperAdmin,
         );
     }
+  }
+
+  Widget _buildAccessDeniedView(String featureName) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.lock_rounded, size: 50, color: Colors.red.shade400),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Access Denied',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.red.shade700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Only Super Admin (user_type: 4) can access $featureName.',
+              style: const TextStyle(fontSize: 14, color: Colors.black54),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6C3CE1),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                setState(() {
+                  _selectedIndex = 0;
+                });
+              },
+              child: const Text('Back to Dashboard'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
 // Premium Dashboard Content
 class DashboardContent extends StatefulWidget {
   final Function(int) onNavigate;
-  const DashboardContent({super.key, required this.onNavigate});
+  final bool isSuperAdmin;
+  const DashboardContent({super.key, required this.onNavigate, this.isSuperAdmin = false});
 
   @override
   State<DashboardContent> createState() => _DashboardContentState();
@@ -1017,6 +1084,10 @@ class _DashboardContentState extends State<DashboardContent> with SingleTickerPr
     final actions = [
       {'title': 'Add Category', 'subtitle': 'Create new categories', 'icon': Icons.add_circle_outline_rounded, 'color': const Color(0xFF6C3CE1), 'index': 1},
       {'title': 'Add Vendor', 'subtitle': 'Register new partner', 'icon': Icons.storefront_rounded, 'color': const Color(0xFF10B981), 'index': 3},
+      if (widget.isSuperAdmin) ...[
+        {'title': 'Notification', 'subtitle': 'Broadcast to users', 'icon': Icons.notifications_active_rounded, 'color': const Color(0xFFEC4899), 'index': 5},
+        {'title': 'App Sliders', 'subtitle': 'Manage app banners', 'icon': Icons.view_carousel_rounded, 'color': const Color(0xFF8B5CF6), 'index': 10},
+      ],
       {'title': 'Publish News', 'subtitle': 'Write live announcements', 'icon': Icons.campaign_outlined, 'color': const Color(0xFF06B6D4), 'index': 9},
       {'title': 'View Live', 'subtitle': 'Check live rates status', 'icon': Icons.sensors_rounded, 'color': const Color(0xFFF59E0B), 'index': 6},
     ];

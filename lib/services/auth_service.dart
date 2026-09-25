@@ -59,12 +59,32 @@ class AuthService {
         
         // Check if login was successful - response has code: 200 and UserInfo
         if (data['code'] == 200 && data['UserInfo'] != null) {
-          // Save user data and token
-          await _saveUserData(data);
-          
           final userInfo = data['UserInfo'];
           final user = userInfo['user'] ?? {}; // User data is nested inside UserInfo
           final token = userInfo['token'] ?? '';
+          
+          final int userType = int.tryParse((user['user_type'] ?? 0).toString()) ?? 0;
+          
+          // Access Control:
+          // user_type == 1 or 2 => Block login ("Access denied, you cannot login here.")
+          // user_type == 3 => Admin (Allowed)
+          // user_type == 4 => Super Admin (Allowed)
+          if (userType == 1 || userType == 2) {
+            return {
+              'success': false,
+              'message': 'Access denied, you cannot login here.',
+            };
+          }
+
+          if (userType != 3 && userType != 4) {
+            return {
+              'success': false,
+              'message': 'Access denied, you cannot login here.',
+            };
+          }
+
+          // Save user data and token only if Admin or Super Admin
+          await _saveUserData(data);
           
           // Extract user info from response
           final userName = user['name'] ?? username;
@@ -77,7 +97,7 @@ class AuthService {
               'name': userName,
               'email': userEmail,
               'mobile': user['mobile'] ?? '',
-              'userType': user['user_type'] ?? 0,
+              'userType': userType,
               'status': user['status'] ?? '',
               'deviceId': user['device_id'] ?? deviceId,
               'id': user['id'] ?? 0,
@@ -119,7 +139,15 @@ class AuthService {
   Future<bool> isLoggedIn() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool(_isLoggedInKey) ?? false;
+      final bool loggedIn = prefs.getBool(_isLoggedInKey) ?? false;
+      if (!loggedIn) return false;
+
+      final user = await getUserData();
+      if (user == null || !user.hasAdminAccess) {
+        await logout();
+        return false;
+      }
+      return true;
     } catch (e) {
       print('Error checking login status: $e');
       return false;
