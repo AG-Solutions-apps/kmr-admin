@@ -1,22 +1,27 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:krm_admin/models/notification_model.dart';
-import 'package:krm_admin/services/notification_service.dart';
+import 'package:krm_admin/models/category_model.dart';
+import 'package:krm_admin/models/slider_model.dart';
+import 'package:krm_admin/services/category_service.dart';
+import 'package:krm_admin/services/slider_service.dart';
 
-class NotificationScreen extends StatefulWidget {
-  const NotificationScreen({super.key});
+class AppSliderScreen extends StatefulWidget {
+  const AppSliderScreen({super.key});
 
   @override
-  State<NotificationScreen> createState() => _NotificationScreenState();
+  State<AppSliderScreen> createState() => _AppSliderScreenState();
 }
 
-class _NotificationScreenState extends State<NotificationScreen> {
-  final NotificationService _notificationService = NotificationService();
+class _AppSliderScreenState extends State<AppSliderScreen> {
+  final SliderService _sliderService = SliderService();
+  final CategoryService _categoryService = CategoryService();
   final ImagePicker _picker = ImagePicker();
 
-  List<NotificationModel> _notifications = [];
-  List<NotificationModel> _filteredNotifications = [];
+  List<SliderModel> _sliders = [];
+  List<SliderModel> _filteredSliders = [];
+  List<String> _categoryOptions = ['Gold Rates', 'Silver Rates', 'Bullion', 'General'];
+
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -26,20 +31,34 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   void initState() {
     super.initState();
-    _loadNotifications();
+    _loadData();
   }
 
-  Future<void> _loadNotifications() async {
+  Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final list = await _notificationService.fetchNotificationList();
+      final slidersFuture = _sliderService.fetchSliderList();
+      final categoriesFuture = _categoryService.fetchCategories();
+
+      final results = await Future.wait([slidersFuture, categoriesFuture]);
+
+      final sliders = results[0] as List<SliderModel>;
+      final categories = results[1] as List<CategoryModel>;
+
       if (mounted) {
         setState(() {
-          _notifications = list;
+          _sliders = sliders;
+          if (categories.isNotEmpty) {
+            _categoryOptions = categories
+                .map((c) => c.categoryName.trim())
+                .where((name) => name.isNotEmpty)
+                .toSet()
+                .toList();
+          }
           _applyFilter();
           _isLoading = false;
         });
@@ -47,7 +66,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Failed to load notifications: $e';
+          _errorMessage = 'Failed to load app sliders: $e';
           _isLoading = false;
         });
       }
@@ -56,9 +75,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   void _applyFilter() {
     setState(() {
-      _filteredNotifications = _notifications.where((item) {
-        final matchesSearch = item.notificationHeading.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            item.notificationDescription.toLowerCase().contains(_searchQuery.toLowerCase());
+      _filteredSliders = _sliders.where((item) {
+        final matchesSearch = (item.sliderUrl ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            (item.sliderType ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            (item.sliderCategory ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
 
         final matchesStatus = _selectedStatusFilter == 'All' ||
             (_selectedStatusFilter == 'Active' && item.isActive) ||
@@ -69,13 +89,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
     });
   }
 
-  int get _activeCount => _notifications.where((n) => n.isActive).length;
-  int get _inactiveCount => _notifications.where((n) => !n.isActive).length;
+  int get _activeCount => _sliders.where((s) => s.isActive).length;
+  int get _inactiveCount => _sliders.where((s) => !s.isActive).length;
 
   // -------------------------------------------------------------
-  // VIEW NOTIFICATION BY ID MODAL (panel-fetch-notification-by-id/{id})
+  // VIEW SLIDER DETAIL MODAL (panel-fetch-slider-by-id/{id})
   // -------------------------------------------------------------
-  void _showNotificationDetailModal(int id) async {
+  void _showSliderDetailModal(int id) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -84,14 +104,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
       ),
     );
 
-    final notification = await _notificationService.fetchNotificationById(id);
+    final slider = await _sliderService.fetchSliderById(id);
 
     if (mounted) {
       Navigator.pop(context); // Close loading indicator
 
-      if (notification == null) {
+      if (slider == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to load notification details.')),
+          const SnackBar(content: Text('Failed to load slider details.')),
         );
         return;
       }
@@ -100,6 +120,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
         context: context,
         builder: (context) {
           final width = MediaQuery.of(context).size.width;
+          final imgUrl = slider.formattedImageUrl;
+
           return Dialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             child: Container(
@@ -115,7 +137,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Notification Details',
+                          'App Banner / Slider Details',
                           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                         IconButton(
@@ -126,12 +148,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Image Banner Header
-                    if (notification.notificationImage != null && notification.notificationImage!.isNotEmpty)
+                    // Slider Banner Image Header
+                    if (imgUrl != null && imgUrl.isNotEmpty)
                       ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: Image.network(
-                          notification.notificationImage!,
+                          imgUrl,
                           height: 200,
                           width: double.infinity,
                           fit: BoxFit.cover,
@@ -144,14 +166,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: const Center(
-                              child: Icon(Icons.notifications_active_rounded, size: 48, color: Colors.white),
+                              child: Icon(Icons.view_carousel_rounded, size: 48, color: Colors.white),
                             ),
                           ),
                         ),
                       )
                     else
                       Container(
-                        height: 100,
+                        height: 120,
                         width: double.infinity,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
@@ -160,35 +182,51 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: const Center(
-                          child: Icon(Icons.notifications_rounded, size: 48, color: Colors.white),
+                          child: Icon(Icons.view_carousel_rounded, size: 48, color: Colors.white),
                         ),
                       ),
                     const SizedBox(height: 20),
 
-                    // Heading & Status Badge
+                    // Category & Status Badge
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: Text(
-                            notification.notificationHeading,
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                slider.sliderType ?? 'Home Banner',
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6C3CE1).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Category: ${slider.sliderCategory ?? "N/A"}',
+                                  style: const TextStyle(color: Color(0xFF6C3CE1), fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: notification.isActive ? Colors.green.shade50 : Colors.red.shade50,
+                            color: slider.isActive ? Colors.green.shade50 : Colors.red.shade50,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: notification.isActive ? Colors.green.shade200 : Colors.red.shade200,
+                              color: slider.isActive ? Colors.green.shade200 : Colors.red.shade200,
                             ),
                           ),
                           child: Text(
-                            notification.isActive ? 'Active' : 'Inactive',
+                            slider.isActive ? 'Active' : 'Inactive',
                             style: TextStyle(
-                              color: notification.isActive ? Colors.green.shade700 : Colors.red.shade700,
+                              color: slider.isActive ? Colors.green.shade700 : Colors.red.shade700,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
@@ -201,13 +239,19 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     const SizedBox(height: 12),
 
                     const Text(
-                      'Notification Message / Description:',
+                      'Target Link / Action URL:',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      notification.notificationDescription,
-                      style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.5),
+                    SelectableText(
+                      (slider.sliderUrl != null && slider.sliderUrl!.isNotEmpty)
+                          ? slider.sliderUrl!
+                          : 'No external URL attached',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: (slider.sliderUrl != null && slider.sliderUrl!.isNotEmpty) ? Colors.blue.shade700 : Colors.black54,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     const SizedBox(height: 20),
 
@@ -223,17 +267,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Notification ID:', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                              Text('#${notification.id}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                              const Text('Slider ID:', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                              Text('#${slider.id}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                             ],
                           ),
-                          if (notification.createdAt != null) ...[
+                          if (slider.createdAt != null) ...[
                             const SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text('Created Timestamp:', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                                Text(notification.createdAt!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                                Text(slider.createdAt!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                               ],
                             ),
                           ],
@@ -251,12 +295,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   // -------------------------------------------------------------
-  // CREATE NOTIFICATION POPUP DIALOG (panel-create-notification)
+  // CREATE SLIDER POPUP DIALOG (panel-create-slider)
   // -------------------------------------------------------------
-  void _showCreateNotificationModal() {
+  void _showCreateSliderModal() {
     final formKey = GlobalKey<FormState>();
-    final headingController = TextEditingController();
-    final descriptionController = TextEditingController();
+    final urlController = TextEditingController();
+
+    String selectedType = 'Home Banner';
+    String selectedCategory = _categoryOptions.isNotEmpty ? _categoryOptions.first : 'General';
+
     XFile? selectedImageFile;
     Uint8List? webImageBytes;
     bool isSubmitting = false;
@@ -268,6 +315,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             final width = MediaQuery.of(context).size.width;
+            final isCategoryBanner = selectedType == 'Category Banner';
+
+            // Prepare categories list safely
+            List<String> availableCategories = List.from(_categoryOptions);
+            if (!availableCategories.contains(selectedCategory)) {
+              availableCategories.insert(0, selectedCategory);
+            }
+
             return Dialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               elevation: 10,
@@ -291,7 +346,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 color: const Color(0xFF6C3CE1).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              child: const Icon(Icons.add_alert_rounded, color: Color(0xFF6C3CE1), size: 26),
+                              child: const Icon(Icons.view_carousel_rounded, color: Color(0xFF6C3CE1), size: 26),
                             ),
                             const SizedBox(width: 14),
                             const Expanded(
@@ -299,12 +354,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Create Push Notification',
+                                    'Create App Banner / Slider',
                                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
                                   ),
                                   SizedBox(height: 2),
                                   Text(
-                                    'Broadcast new message to user mobile app',
+                                    'Broadcast banner slider on user mobile app',
                                     style: TextStyle(fontSize: 12, color: Colors.grey),
                                   ),
                                 ],
@@ -318,14 +373,116 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Notification Heading Field
+                        // Slider Type Dropdown (Home Banner / Category Banner)
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedType,
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+                          decoration: InputDecoration(
+                            labelText: 'Slider Type *',
+                            prefixIcon: const Icon(Icons.view_carousel_outlined, color: Color(0xFF6C3CE1)),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: const BorderSide(color: Color(0xFF6C3CE1), width: 2),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'Home Banner',
+                              child: Text('Home Banner'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Category Banner',
+                              child: Text('Category Banner'),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setModalState(() {
+                                selectedType = val;
+                              });
+                            }
+                          },
+                          validator: (v) => (v == null || v.isEmpty) ? 'Please select slider type' : null,
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Slider Category Dropdown (Disabled when Home Banner, Enabled when Category Banner)
+                        DropdownButtonFormField<String>(
+                          initialValue: isCategoryBanner ? selectedCategory : null,
+                          disabledHint: Row(
+                            children: [
+                              Icon(Icons.block_rounded, size: 18, color: Colors.grey.shade400),
+                              const SizedBox(width: 8),
+                              Text('Not Applicable for Home Banner', style: TextStyle(color: Colors.grey.shade500, fontSize: 13.5)),
+                            ],
+                          ),
+                          hint: const Text('Select Category'),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: isCategoryBanner ? Colors.black87 : Colors.grey,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: isCategoryBanner ? 'Slider Category *' : 'Slider Category (Disabled for Home Banner)',
+                            prefixIcon: Icon(
+                              Icons.category_outlined,
+                              color: isCategoryBanner ? const Color(0xFF6C3CE1) : Colors.grey.shade400,
+                            ),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            disabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(color: Colors.grey.shade200),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: const BorderSide(color: Color(0xFF6C3CE1), width: 2),
+                            ),
+                            filled: !isCategoryBanner,
+                            fillColor: isCategoryBanner ? Colors.transparent : Colors.grey.shade100,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          ),
+                          items: isCategoryBanner
+                              ? availableCategories.map((catName) {
+                                  return DropdownMenuItem<String>(
+                                    value: catName,
+                                    child: Text(catName),
+                                  );
+                                }).toList()
+                              : null,
+                          onChanged: isCategoryBanner
+                              ? (val) {
+                                  if (val != null) {
+                                    setModalState(() => selectedCategory = val);
+                                  }
+                                }
+                              : null, // Disables dropdown when Home Banner
+                          validator: (v) {
+                            if (isCategoryBanner && (v == null || v.isEmpty)) {
+                              return 'Please select slider category';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Target Action URL Field
                         TextFormField(
-                          controller: headingController,
+                          controller: urlController,
                           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                           decoration: InputDecoration(
-                            labelText: 'Notification Heading *',
-                            hintText: 'e.g. Flash Offer Live Rate Announcement!',
-                            prefixIcon: const Icon(Icons.title_rounded, color: Color(0xFF6C3CE1)),
+                            labelText: 'Target Action URL (Optional)',
+                            hintText: 'https://kmrlive.in/rates',
+                            prefixIcon: const Icon(Icons.link_rounded, color: Color(0xFF6C3CE1)),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
@@ -337,39 +494,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             ),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                           ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter notification heading' : null,
                         ),
                         const SizedBox(height: 20),
 
-                        // Notification Description Field (Correct UI/UX formatting)
-                        TextFormField(
-                          controller: descriptionController,
-                          maxLines: 4,
-                          minLines: 3,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.4),
-                          decoration: InputDecoration(
-                            labelText: 'Notification Description *',
-                            alignLabelWithHint: true,
-                            hintText: 'Enter complete push notification message content...',
-                            prefixIcon: const Icon(Icons.description_outlined, color: Color(0xFF6C3CE1)),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: const BorderSide(color: Color(0xFF6C3CE1), width: 2),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter notification description' : null,
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Direct Image Upload Picker Area (No URL Field)
+                        // Direct Image File Upload Picker Area
                         const Text(
-                          'Notification Image File (Optional)',
+                          'Slider Banner Image File *',
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                         const SizedBox(height: 10),
@@ -389,7 +519,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             borderRadius: BorderRadius.circular(16),
                             child: Container(
                               width: double.infinity,
-                              height: 120,
+                              height: 130,
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF8FAFC),
                                 borderRadius: BorderRadius.circular(16),
@@ -408,7 +538,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   const Text(
-                                    'Select Image File',
+                                    'Click to Select Banner Image File',
                                     style: TextStyle(color: Color(0xFF6C3CE1), fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                   const SizedBox(height: 2),
@@ -484,9 +614,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
                                     setModalState(() => isSubmitting = true);
 
-                                    final result = await _notificationService.createNotification(
-                                      heading: headingController.text.trim(),
-                                      description: descriptionController.text.trim(),
+                                    final finalCategory = isCategoryBanner ? selectedCategory : 'Home Banner';
+
+                                    final result = await _sliderService.createSlider(
+                                      sliderUrl: urlController.text.trim(),
+                                      sliderType: selectedType,
+                                      sliderCategory: finalCategory,
                                       imageFile: selectedImageFile,
                                       webImageBytes: webImageBytes,
                                     );
@@ -497,15 +630,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                         Navigator.pop(context);
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text(result['message'] ?? 'Notification created successfully!'),
+                                            content: Text(result['message'] ?? 'App Slider created successfully!'),
                                             backgroundColor: Colors.green,
                                           ),
                                         );
-                                        _loadNotifications();
+                                        _loadData();
                                       } else {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text(result['message'] ?? 'Failed to create notification.'),
+                                            content: Text(result['message'] ?? 'Failed to create app slider.'),
                                             backgroundColor: Colors.red,
                                           ),
                                         );
@@ -527,10 +660,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 : const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.send_rounded, size: 20),
+                                      Icon(Icons.cloud_upload_rounded, size: 20),
                                       SizedBox(width: 8),
                                       Text(
-                                        'Post Notification Now',
+                                        'Publish App Slider',
                                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                       ),
                                     ],
@@ -550,13 +683,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   // -------------------------------------------------------------
-  // EDIT NOTIFICATION POPUP DIALOG (panel-update-notification/{id})
+  // EDIT SLIDER POPUP DIALOG (panel-update-slider/{id})
   // -------------------------------------------------------------
-  void _showEditNotificationModal(NotificationModel notification) {
+  void _showEditSliderModal(SliderModel slider) {
     final formKey = GlobalKey<FormState>();
-    final headingController = TextEditingController(text: notification.notificationHeading);
-    final descriptionController = TextEditingController(text: notification.notificationDescription);
-    bool isActive = notification.isActive;
+    final urlController = TextEditingController(text: slider.sliderUrl);
+
+    String selectedType = (slider.sliderType == 'Category Banner') ? 'Category Banner' : 'Home Banner';
+    String selectedCategory = slider.sliderCategory ?? (_categoryOptions.isNotEmpty ? _categoryOptions.first : 'General');
+    bool isActive = slider.isActive;
+
     XFile? selectedImageFile;
     Uint8List? webImageBytes;
     bool isSubmitting = false;
@@ -568,6 +704,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             final width = MediaQuery.of(context).size.width;
+            final imgUrl = slider.formattedImageUrl;
+            final isCategoryBanner = selectedType == 'Category Banner';
+
+            // Prepare categories list safely
+            List<String> availableCategories = List.from(_categoryOptions);
+            if (!availableCategories.contains(selectedCategory)) {
+              availableCategories.insert(0, selectedCategory);
+            }
+
             return Dialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               elevation: 10,
@@ -591,7 +736,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 color: Colors.blue.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              child: const Icon(Icons.edit_notifications_rounded, color: Colors.blue, size: 26),
+                              child: const Icon(Icons.edit_rounded, color: Colors.blue, size: 26),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -599,12 +744,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Edit Notification #${notification.id}',
+                                    'Edit App Slider #${slider.id}',
                                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
                                   ),
                                   const SizedBox(height: 2),
                                   const Text(
-                                    'Update heading, content, banner image or status',
+                                    'Update type, category, target URL, image file or status',
                                     style: TextStyle(fontSize: 12, color: Colors.grey),
                                   ),
                                 ],
@@ -618,13 +763,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Notification Heading Field
-                        TextFormField(
-                          controller: headingController,
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                        // Slider Type Dropdown (Home Banner / Category Banner)
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedType,
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
                           decoration: InputDecoration(
-                            labelText: 'Notification Heading *',
-                            prefixIcon: const Icon(Icons.title_rounded, color: Color(0xFF6C3CE1)),
+                            labelText: 'Slider Type *',
+                            prefixIcon: const Icon(Icons.view_carousel_outlined, color: Color(0xFF6C3CE1)),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
@@ -636,21 +781,97 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             ),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                           ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter notification heading' : null,
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'Home Banner',
+                              child: Text('Home Banner'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Category Banner',
+                              child: Text('Category Banner'),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setModalState(() {
+                                selectedType = val;
+                              });
+                            }
+                          },
+                          validator: (v) => (v == null || v.isEmpty) ? 'Please select slider type' : null,
                         ),
                         const SizedBox(height: 20),
 
-                        // Notification Description Field (Correct UI/UX formatting)
-                        TextFormField(
-                          controller: descriptionController,
-                          maxLines: 4,
-                          minLines: 3,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.4),
+                        // Slider Category Dropdown (Disabled when Home Banner, Enabled when Category Banner)
+                        DropdownButtonFormField<String>(
+                          initialValue: isCategoryBanner ? selectedCategory : null,
+                          disabledHint: Row(
+                            children: [
+                              Icon(Icons.block_rounded, size: 18, color: Colors.grey.shade400),
+                              const SizedBox(width: 8),
+                              Text('Not Applicable for Home Banner', style: TextStyle(color: Colors.grey.shade500, fontSize: 13.5)),
+                            ],
+                          ),
+                          hint: const Text('Select Category'),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: isCategoryBanner ? Colors.black87 : Colors.grey,
+                          ),
                           decoration: InputDecoration(
-                            labelText: 'Notification Description *',
-                            alignLabelWithHint: true,
-                            hintText: 'Enter complete notification content...',
-                            prefixIcon: const Icon(Icons.description_outlined, color: Color(0xFF6C3CE1)),
+                            labelText: isCategoryBanner ? 'Slider Category *' : 'Slider Category (Disabled for Home Banner)',
+                            prefixIcon: Icon(
+                              Icons.category_outlined,
+                              color: isCategoryBanner ? const Color(0xFF6C3CE1) : Colors.grey.shade400,
+                            ),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            disabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(color: Colors.grey.shade200),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: const BorderSide(color: Color(0xFF6C3CE1), width: 2),
+                            ),
+                            filled: !isCategoryBanner,
+                            fillColor: isCategoryBanner ? Colors.transparent : Colors.grey.shade100,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          ),
+                          items: isCategoryBanner
+                              ? availableCategories.map((catName) {
+                                  return DropdownMenuItem<String>(
+                                    value: catName,
+                                    child: Text(catName),
+                                  );
+                                }).toList()
+                              : null,
+                          onChanged: isCategoryBanner
+                              ? (val) {
+                                  if (val != null) {
+                                    setModalState(() => selectedCategory = val);
+                                  }
+                                }
+                              : null, // Disables dropdown when Home Banner
+                          validator: (v) {
+                            if (isCategoryBanner && (v == null || v.isEmpty)) {
+                              return 'Please select slider category';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Target Action URL Field
+                        TextFormField(
+                          controller: urlController,
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                          decoration: InputDecoration(
+                            labelText: 'Target Action URL (Optional)',
+                            prefixIcon: const Icon(Icons.link_rounded, color: Color(0xFF6C3CE1)),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
@@ -662,7 +883,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             ),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                           ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter notification description' : null,
                         ),
                         const SizedBox(height: 20),
 
@@ -685,7 +905,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                   ),
                                   const SizedBox(width: 12),
                                   Text(
-                                    isActive ? 'Status: Active Broadcast' : 'Status: Inactive / Disabled',
+                                    isActive ? 'Status: Active Banner' : 'Status: Inactive / Disabled',
                                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                   ),
                                 ],
@@ -702,9 +922,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         ),
                         const SizedBox(height: 20),
 
-                        // Direct Image Upload Picker Area (No URL Field)
+                        // Direct Image File Upload Picker Area
                         const Text(
-                          'Notification Banner Image (Optional)',
+                          'Slider Banner Image File',
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                         const SizedBox(height: 10),
@@ -740,14 +960,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
                               ),
                             ],
                           )
-                        else if (notification.notificationImage != null && notification.notificationImage!.isNotEmpty)
+                        else if (imgUrl != null && imgUrl.isNotEmpty)
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(16),
                                 child: Image.network(
-                                  notification.notificationImage!,
+                                  imgUrl,
                                   height: 140,
                                   width: double.infinity,
                                   fit: BoxFit.cover,
@@ -803,9 +1023,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                               child: const Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.cloud_upload_outlined, color: Color(0xFF6C3CE1), size: 28),
-                                  const SizedBox(height: 6),
-                                  const Text(
+                                  Icon(Icons.cloud_upload_outlined, color: Color(0xFF6C3CE1), size: 28),
+                                  SizedBox(height: 6),
+                                  Text(
                                     'Select New Image File',
                                     style: TextStyle(color: Color(0xFF6C3CE1), fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
@@ -827,11 +1047,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
                                     setModalState(() => isSubmitting = true);
 
-                                    final result = await _notificationService.updateNotification(
-                                      id: notification.id,
-                                      heading: headingController.text.trim(),
-                                      description: descriptionController.text.trim(),
-                                      notificationStatus: isActive ? 1 : 0,
+                                    final finalCategory = isCategoryBanner ? selectedCategory : 'Home Banner';
+
+                                    final result = await _sliderService.updateSlider(
+                                      id: slider.id,
+                                      sliderUrl: urlController.text.trim(),
+                                      sliderType: selectedType,
+                                      sliderCategory: finalCategory,
+                                      sliderStatus: isActive ? 1 : 0,
                                       imageFile: selectedImageFile,
                                       webImageBytes: webImageBytes,
                                     );
@@ -842,15 +1065,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                         Navigator.pop(context);
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text(result['message'] ?? 'Notification updated successfully!'),
+                                            content: Text(result['message'] ?? 'App Slider updated successfully!'),
                                             backgroundColor: Colors.green,
                                           ),
                                         );
-                                        _loadNotifications();
+                                        _loadData();
                                       } else {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text(result['message'] ?? 'Failed to update notification.'),
+                                            content: Text(result['message'] ?? 'Failed to update app slider.'),
                                             backgroundColor: Colors.red,
                                           ),
                                         );
@@ -875,7 +1098,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                       Icon(Icons.save_rounded, size: 20),
                                       SizedBox(width: 8),
                                       Text(
-                                        'Save Notification Changes',
+                                        'Save Slider Changes',
                                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                       ),
                                     ],
@@ -895,26 +1118,27 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   // Quick toggle status action
-  void _toggleNotificationStatus(NotificationModel notification) async {
-    final newStatus = notification.isActive ? 0 : 1;
+  void _toggleSliderStatus(SliderModel slider) async {
+    final newStatus = slider.isActive ? 0 : 1;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(newStatus == 1 ? 'Activating notification...' : 'Deactivating notification...'),
+        content: Text(newStatus == 1 ? 'Activating banner...' : 'Deactivating banner...'),
         duration: const Duration(seconds: 1),
       ),
     );
 
-    final result = await _notificationService.updateNotification(
-      id: notification.id,
-      heading: notification.notificationHeading,
-      description: notification.notificationDescription,
-      notificationStatus: newStatus,
+    final result = await _sliderService.updateSlider(
+      id: slider.id,
+      sliderUrl: slider.sliderUrl ?? '',
+      sliderType: slider.sliderType ?? 'Home Banner',
+      sliderCategory: slider.sliderCategory ?? 'Home Banner',
+      sliderStatus: newStatus,
     );
 
     if (mounted) {
       if (result['status'] == true) {
-        _loadNotifications();
+        _loadData();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -930,7 +1154,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
 
-    // Responsive columns calculation: Desktop: 3 per row (>1024), Tablet: 2 per row (>650), Mobile: 1 per row
+    // Responsive columns: Desktop 3, Tablet 2, Mobile 1
     int crossAxisCount = 3;
     if (width <= 650) {
       crossAxisCount = 1;
@@ -945,7 +1169,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Page Header with Title & Create Button
+            // Header with title and Create button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -953,20 +1177,20 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Push Notifications Hub',
+                      'App Sliders & Banners Hub',
                       style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Manage & broadcast notifications to user mobile application',
+                      'Manage & dynamic publish image banners to mobile application',
                       style: TextStyle(fontSize: 13, color: Colors.black54),
                     ),
                   ],
                 ),
                 ElevatedButton.icon(
-                  onPressed: _showCreateNotificationModal,
+                  onPressed: _showCreateSliderModal,
                   icon: const Icon(Icons.add_rounded, size: 20),
-                  label: const Text('Create Notification', style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: const Text('Create App Slider', style: TextStyle(fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6C3CE1),
                     foregroundColor: Colors.white,
@@ -984,27 +1208,27 @@ class _NotificationScreenState extends State<NotificationScreen> {
               children: [
                 Expanded(
                   child: _buildStatCard(
-                    title: 'Total Notifications',
-                    count: _notifications.length.toString(),
-                    icon: Icons.notifications_rounded,
+                    title: 'Total Sliders',
+                    count: _sliders.length.toString(),
+                    icon: Icons.view_carousel_rounded,
                     color: const Color(0xFF6C3CE1),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildStatCard(
-                    title: 'Active Broadcasts',
+                    title: 'Active Banners',
                     count: _activeCount.toString(),
-                    icon: Icons.notifications_active_rounded,
+                    icon: Icons.check_circle_rounded,
                     color: Colors.green,
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildStatCard(
-                    title: 'Inactive / Archived',
+                    title: 'Inactive Banners',
                     count: _inactiveCount.toString(),
-                    icon: Icons.notifications_off_rounded,
+                    icon: Icons.pause_circle_rounded,
                     color: Colors.amber.shade800,
                   ),
                 ),
@@ -1012,7 +1236,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Search & Filter Controls Toolbar
+            // Toolbar Search & Filters
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1028,7 +1252,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
               ),
               child: Row(
                 children: [
-                  // Search Input Box
+                  // Search box
                   Expanded(
                     child: TextField(
                       onChanged: (val) {
@@ -1036,7 +1260,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         _applyFilter();
                       },
                       decoration: InputDecoration(
-                        hintText: 'Search notification title or content...',
+                        hintText: 'Search by type, category or action URL...',
                         prefixIcon: const Icon(Icons.search_rounded, color: Colors.grey),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         border: OutlineInputBorder(
@@ -1058,7 +1282,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   ),
                   const SizedBox(width: 16),
 
-                  // Status Filter Segmented Options
+                  // Status Filter pills
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
@@ -1100,8 +1324,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
                   // Refresh Button
                   IconButton(
-                    onPressed: _loadNotifications,
-                    tooltip: 'Refresh Notifications',
+                    onPressed: _loadData,
+                    tooltip: 'Refresh Sliders',
                     icon: const Icon(Icons.refresh_rounded, color: Color(0xFF6C3CE1)),
                   ),
                 ],
@@ -1128,7 +1352,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 15)),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
-                        onPressed: _loadNotifications,
+                        onPressed: _loadData,
                         icon: const Icon(Icons.refresh_rounded),
                         label: const Text('Try Again'),
                         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6C3CE1)),
@@ -1137,7 +1361,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   ),
                 ),
               )
-            else if (_filteredNotifications.isEmpty)
+            else if (_filteredSliders.isEmpty)
               Center(
                 child: Container(
                   padding: const EdgeInsets.all(40),
@@ -1148,17 +1372,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.notifications_none_rounded, size: 64, color: Colors.grey.shade400),
+                      Icon(Icons.view_carousel_outlined, size: 64, color: Colors.grey.shade400),
                       const SizedBox(height: 16),
                       const Text(
-                        'No Notifications Found',
+                        'No App Sliders Found',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         _searchQuery.isNotEmpty
                             ? 'No result matching "$_searchQuery"'
-                            : 'Click "Create Notification" button above to add a new broadcast.',
+                            : 'Click "Create App Slider" button above to add a new banner.',
                         style: const TextStyle(color: Colors.grey, fontSize: 13),
                       ),
                     ],
@@ -1166,7 +1390,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 ),
               )
             else
-              // Responsive Notification Grid
+              // Responsive Grid View of Slider Cards
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -1176,10 +1400,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   crossAxisSpacing: 20,
                   childAspectRatio: width > 1400 ? 1.25 : (width > 650 ? 1.15 : 1.10),
                 ),
-                itemCount: _filteredNotifications.length,
+                itemCount: _filteredSliders.length,
                 itemBuilder: (context, index) {
-                  final notification = _filteredNotifications[index];
-                  return _buildNotificationCard(notification);
+                  final slider = _filteredSliders[index];
+                  return _buildSliderCard(slider);
                 },
               ),
           ],
@@ -1188,7 +1412,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  // Top Stat Summary Card Widget
+  // Stat summary card
   Widget _buildStatCard({
     required String title,
     required String count,
@@ -1238,9 +1462,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  // Individual Notification Display Card Widget
-  Widget _buildNotificationCard(NotificationModel notification) {
-    final hasImage = notification.notificationImage != null && notification.notificationImage!.isNotEmpty;
+  // Individual App Slider Card
+  Widget _buildSliderCard(SliderModel slider) {
+    final imgUrl = slider.formattedImageUrl;
 
     return Container(
       decoration: BoxDecoration(
@@ -1263,9 +1487,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
             children: [
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                child: hasImage
+                child: (imgUrl != null && imgUrl.isNotEmpty)
                     ? Image.network(
-                        notification.notificationImage!,
+                        imgUrl,
                         height: 140,
                         width: double.infinity,
                         fit: BoxFit.cover,
@@ -1279,7 +1503,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             ),
                           ),
                           child: const Center(
-                            child: Icon(Icons.notifications_active_rounded, size: 44, color: Colors.white),
+                            child: Icon(Icons.view_carousel_rounded, size: 44, color: Colors.white),
                           ),
                         ),
                       )
@@ -1294,7 +1518,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           ),
                         ),
                         child: const Center(
-                          child: Icon(Icons.notifications_rounded, size: 44, color: Colors.white),
+                          child: Icon(Icons.view_carousel_rounded, size: 44, color: Colors.white),
                         ),
                       ),
               ),
@@ -1305,12 +1529,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 child: Tooltip(
                   message: 'Click to toggle Status',
                   child: InkWell(
-                    onTap: () => _toggleNotificationStatus(notification),
+                    onTap: () => _toggleSliderStatus(slider),
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: notification.isActive ? Colors.green : Colors.red,
+                        color: slider.isActive ? Colors.green : Colors.red,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4),
@@ -1326,7 +1550,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            notification.isActive ? 'Active' : 'Inactive',
+                            slider.isActive ? 'Active' : 'Inactive',
                             style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -1346,7 +1570,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '#${notification.id}',
+                    '#${slider.id}',
                     style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -1354,30 +1578,50 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ],
           ),
 
-          // Compact Card Content Details (No excessive whitespace)
+          // Compact Card Content Details
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    notification.notificationHeading,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          slider.sliderType ?? 'Home Banner',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6C3CE1).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          slider.sliderCategory ?? 'General',
+                          style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF6C3CE1)),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    notification.notificationDescription,
-                    maxLines: 2,
+                    (slider.sliderUrl != null && slider.sliderUrl!.isNotEmpty)
+                        ? 'URL: ${slider.sliderUrl}'
+                        : 'No action link attached',
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700, height: 1.35),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                   ),
                   const Spacer(),
-                  if (notification.createdAt != null)
+                  if (slider.createdAt != null)
                     Text(
-                      'Created: ${notification.createdAt}',
+                      'Created: ${slider.createdAt}',
                       style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
                     ),
                 ],
@@ -1393,16 +1637,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // 1. View Details Icon Button
+                // 1. View Details Button
                 IconButton(
-                  onPressed: () => _showNotificationDetailModal(notification.id),
-                  tooltip: 'View Notification Details',
+                  onPressed: () => _showSliderDetailModal(slider.id),
+                  tooltip: 'View Banner Details',
                   icon: const Icon(Icons.remove_red_eye_outlined, color: Color(0xFF6C3CE1), size: 20),
                 ),
 
                 // 2. Edit Button
                 ElevatedButton.icon(
-                  onPressed: () => _showEditNotificationModal(notification),
+                  onPressed: () => _showEditSliderModal(slider),
                   icon: const Icon(Icons.edit_rounded, size: 15),
                   label: const Text('Edit', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(

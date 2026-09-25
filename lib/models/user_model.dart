@@ -67,6 +67,11 @@ class UserModel {
       token = json['token'] ?? '';
     }
     
+    int parsedUserType = 0;
+    if (userData['user_type'] != null) {
+      parsedUserType = int.tryParse(userData['user_type'].toString()) ?? 0;
+    }
+
     return UserModel(
       id: userData['id'] ?? 0,
       name: userData['name'] ?? '',
@@ -74,7 +79,7 @@ class UserModel {
       email: userData['email'] ?? '',
       city: userData['city'],
       vendorId: userData['vendor_id']?.toString(),
-      userType: userData['user_type'] ?? 0,
+      userType: parsedUserType,
       status: userData['status'] ?? '',
       emailVerifiedAt: userData['email_verified_at'],
       cpassword: userData['cpassword'] ?? '',
@@ -92,6 +97,14 @@ class UserModel {
       msg: json['msg'] ?? '',
     );
   }
+
+  // Helper Role Check Getters
+  // user_type 3 = Admin
+  bool get isAdmin => userType == 3;
+  // user_type 4 = Super Admin
+  bool get isSuperAdmin => userType == 4;
+  // Panel Access (Only 3 or 4 allowed)
+  bool get hasAdminAccess => userType == 3 || userType == 4;
 
   Map<String, dynamic> toJson() {
     return {
